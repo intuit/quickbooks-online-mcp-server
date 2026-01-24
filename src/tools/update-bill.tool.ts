@@ -7,27 +7,36 @@ const toolDescription = "Update a bill in QuickBooks Online.";
 const toolSchema = z.object({
   bill: z.object({
     Id: z.string(),
+    SyncToken: z.string(),
     Line: z.array(z.object({
       Amount: z.number(),
-      DetailType: z.string(),
-      Description: z.string(),
-      AccountRef: z.object({
-        value: z.string(),
-        name: z.string().optional(),
+      DetailType: z.literal("AccountBasedExpenseLineDetail"),
+      Description: z.string().optional(),
+      AccountBasedExpenseLineDetail: z.object({
+        AccountRef: z.object({
+          value: z.string(),
+          name: z.string().optional(),
+        }),
+        ClassRef: z.object({
+          value: z.string(),
+          name: z.string().optional(),
+        }).optional(),
+        BillableStatus: z.enum(["Billable", "NotBillable", "HasBeenBilled"]).optional(),
       }),
     })),
     VendorRef: z.object({
       value: z.string(),
       name: z.string().optional(),
     }),
-    DueDate: z.string(),
-    Balance: z.number(),
-    TotalAmt: z.number(),
+    DueDate: z.string().optional(),
+    TxnDate: z.string().optional(),
+    PrivateNote: z.string().optional(),
   }),
 });
 
 const toolHandler = async (args: { [x: string]: any }) => {
-  const response = await updateQuickbooksBill(args.bill);
+  const billInput = args.params?.bill || args.bill;
+  const response = await updateQuickbooksBill(billInput);
 
   if (response.isError) {
     return {
@@ -40,13 +49,13 @@ const toolHandler = async (args: { [x: string]: any }) => {
     };
   }
 
-  const bill = response.result;
+  const updatedBill = response.result;
 
   return {
     content: [
       {
         type: "text" as const,
-        text: JSON.stringify(bill),
+        text: JSON.stringify(updatedBill),
       }
     ],
   };
