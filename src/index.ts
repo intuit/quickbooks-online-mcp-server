@@ -66,6 +66,12 @@ import { UpdatePurchaseTool } from "./tools/update-purchase.tool.js";
 import { DeletePurchaseTool } from "./tools/delete-purchase.tool.js";
 import { SearchPurchasesTool } from "./tools/search-purchases.tool.js";
 
+// Attachable tools
+import { GetAttachableTool } from "./tools/get-attachable.tool.js";
+import { SearchAttachablesTool } from "./tools/search-attachables.tool.js";
+import { DownloadAttachableTool } from "./tools/download-attachable.tool.js";
+import { UploadAttachableTool } from "./tools/upload-attachable.tool.js";
+
 const main = async () => {
   // Create an MCP server
   const server = QuickbooksMCPServer.GetServer();
@@ -155,6 +161,12 @@ const main = async () => {
   RegisterTool(server, UpdatePurchaseTool);
   RegisterTool(server, DeletePurchaseTool);
   RegisterTool(server, SearchPurchasesTool);
+
+  // Add tools for attachables
+  RegisterTool(server, GetAttachableTool);
+  RegisterTool(server, SearchAttachablesTool);
+  RegisterTool(server, DownloadAttachableTool);
+  RegisterTool(server, UploadAttachableTool);
 
   // Start receiving messages on stdin and sending messages on stdout
   const transport = new StdioServerTransport();
