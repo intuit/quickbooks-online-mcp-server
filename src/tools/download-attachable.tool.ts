@@ -11,10 +11,10 @@ const toolSchema = z.object({
 });
 
 const toolHandler = async (args: any) => {
-  const response = await downloadQuickbooksAttachable(
-    args.params.id,
-    args.params.outputPath
-  );
+  const id = args.params?.id || args.id;
+  const outputPath = args.params?.outputPath || args.outputPath;
+
+  const response = await downloadQuickbooksAttachable(id, outputPath);
 
   if (response.isError) {
     return {
