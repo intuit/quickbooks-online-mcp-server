@@ -85,6 +85,12 @@ declare module 'node-quickbooks' {
     updatePurchase(purchaseData: object, callback: (err: any, purchase: any) => void): void;
     deletePurchase(idOrEntity: any, callback: (err: any, response: any) => void): void;
 
-    // You can add more methods as needed
+    // Attachable CRUD
+    findAttachables(options: object, callback: (err: any, attachables: any) => void): void;
+    createAttachable(attachableData: object, callback: (err: any, attachable: any) => void): void;
+    getAttachable(id: string, callback: (err: any, attachable: any) => void): void;
+    updateAttachable(attachableData: object, callback: (err: any, attachable: any) => void): void;
+    deleteAttachable(idOrEntity: any, callback: (err: any, response: any) => void): void;
+    upload(filename: string, contentType: string, stream: any, entityType: string | null, entityId: string | null, callback: (err: any, attachable: any) => void): void;
   }
 }
