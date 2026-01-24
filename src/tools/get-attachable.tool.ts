@@ -3,15 +3,33 @@ import { ToolDefinition } from "../types/tool-definition.js";
 import { z } from "zod";
 
 const toolName = "get_attachable";
-const toolDescription = "Retrieve a specific attachable from QuickBooks Online by ID.";
+const toolDescription = "Get an attachable (file attachment) by Id from QuickBooks Online. Returns metadata including TempDownloadUri for downloading the file.";
+
 const toolSchema = z.object({
-  id: z.string().min(1).describe("Attachable ID"),
+  id: z.string(),
 });
 
-const toolHandler = async ({ params }: any) => {
-  const response = await getQuickbooksAttachable(params.id);
-  if (response.isError) return { content: [{ type: "text" as const, text: `Error: ${response.error}` }] };
-  return { content: [{ type: "text" as const, text: JSON.stringify(response.result, null, 2) }] };
+const toolHandler = async (args: any) => {
+  const response = await getQuickbooksAttachable(args.params.id);
+
+  if (response.isError) {
+    return {
+      content: [
+        { type: "text" as const, text: `Error getting attachable: ${response.error}` },
+      ],
+    };
+  }
+
+  return {
+    content: [
+      { type: "text" as const, text: `Attachable retrieved: ${JSON.stringify(response.result)}` },
+    ],
+  };
 };
 
-export const GetAttachableTool: ToolDefinition<typeof toolSchema> = { name: toolName, description: toolDescription, schema: toolSchema, handler: toolHandler };
+export const GetAttachableTool: ToolDefinition<typeof toolSchema> = {
+  name: toolName,
+  description: toolDescription,
+  schema: toolSchema,
+  handler: toolHandler,
+};
