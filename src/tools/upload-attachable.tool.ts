@@ -12,10 +12,14 @@ const toolSchema = z.object({
 });
 
 const toolHandler = async (args: any) => {
+  const filePath = args.params?.filePath || args.filePath;
+  const entityType = args.params?.entityType || args.entityType;
+  const entityId = args.params?.entityId || args.entityId;
+
   const response = await uploadQuickbooksAttachable(
-    args.params.filePath,
-    args.params.entityType,
-    args.params.entityId
+    filePath,
+    entityType,
+    entityId
   );
 
   if (response.isError) {

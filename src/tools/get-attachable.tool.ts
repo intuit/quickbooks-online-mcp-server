@@ -10,7 +10,8 @@ const toolSchema = z.object({
 });
 
 const toolHandler = async (args: any) => {
-  const response = await getQuickbooksAttachable(args.params.id);
+  const id = args.params?.id || args.id;
+  const response = await getQuickbooksAttachable(id);
 
   if (response.isError) {
     return {
