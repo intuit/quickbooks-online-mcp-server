@@ -197,6 +197,12 @@ import { GetAgedPayablesTool } from "./tools/get-aged-payables.tool.js";
 import { GetVendorExpensesTool } from "./tools/get-vendor-expenses.tool.js";
 import { GetVendorBalanceTool } from "./tools/get-vendor-balance.tool.js";
 
+// Attachable tools
+import { GetAttachableTool } from "./tools/get-attachable.tool.js";
+import { SearchAttachablesTool } from "./tools/search-attachables.tool.js";
+import { DownloadAttachableTool } from "./tools/download-attachable.tool.js";
+import { UploadAttachableTool } from "./tools/upload-attachable.tool.js";
+
 const main = async () => {
   // Create an MCP server
   const server = QuickbooksMCPServer.GetServer();
@@ -417,6 +423,12 @@ const main = async () => {
   RegisterTool(server, GetAgedPayablesTool);
   RegisterTool(server, GetVendorExpensesTool);
   RegisterTool(server, GetVendorBalanceTool);
+
+  // Add tools for attachables
+  RegisterTool(server, GetAttachableTool);
+  RegisterTool(server, SearchAttachablesTool);
+  RegisterTool(server, DownloadAttachableTool);
+  RegisterTool(server, UploadAttachableTool);
 
   // Start receiving messages on stdin and sending messages on stdout
   const transport = new StdioServerTransport();
