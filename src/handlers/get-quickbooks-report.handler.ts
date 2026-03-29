@@ -3,25 +3,21 @@ import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
 
 /**
- * Get company information from QuickBooks Online.
- * Used for auth validation and basic connectivity testing.
+ * Fetch a QBO report (P&L, Balance Sheet, General Ledger, Trial Balance).
  *
- * node-quickbooks getCompanyInfo requires the realmId (company ID).
- * We pass it from the env config via the client.
+ * Uses the node-quickbooks reportQuery method which wraps the
+ * /v3/company/{realmId}/reports/{reportName} endpoint.
  */
-export async function getQuickbooksCompanyInfo(): Promise<ToolResponse<any>> {
+export async function getQuickbooksReport(
+  reportName: string,
+  params: Record<string, string>
+): Promise<ToolResponse<any>> {
   try {
     await quickbooksClient.authenticate();
     const quickbooks = quickbooksClient.getQuickbooks();
 
-    // node-quickbooks getCompanyInfo takes companyId as first arg
-    const companyId = process.env.QUICKBOOKS_REALM_ID;
-    if (!companyId) {
-      throw new Error("QUICKBOOKS_REALM_ID is not set");
-    }
-
     return new Promise((resolve) => {
-      quickbooks.getCompanyInfo(companyId, (err: any, companyInfo: any) => {
+      quickbooks.reportQuery(reportName, params, (err: any, report: any) => {
         if (err) {
           resolve({
             result: null,
@@ -30,7 +26,7 @@ export async function getQuickbooksCompanyInfo(): Promise<ToolResponse<any>> {
           });
         } else {
           resolve({
-            result: companyInfo,
+            result: report,
             isError: false,
             error: null,
           });

@@ -69,7 +69,6 @@ import { GetPurchaseTool } from "./tools/get-purchase.tool.js";
 import { UpdatePurchaseTool } from "./tools/update-purchase.tool.js";
 import { DeletePurchaseTool } from "./tools/delete-purchase.tool.js";
 import { SearchPurchasesTool } from "./tools/search-purchases.tool.js";
-
 // Payment tools
 import { CreatePaymentTool } from "./tools/create-payment.tool.js";
 import { GetPaymentTool } from "./tools/get-payment.tool.js";
@@ -199,6 +198,7 @@ import { GetCustomerBalanceTool } from "./tools/get-customer-balance.tool.js";
 import { GetAgedPayablesTool } from "./tools/get-aged-payables.tool.js";
 import { GetVendorExpensesTool } from "./tools/get-vendor-expenses.tool.js";
 import { GetVendorBalanceTool } from "./tools/get-vendor-balance.tool.js";
+import { GetReportTool } from "./tools/get-report.tool.js";
 
 const main = async () => {
   // Create an MCP server
@@ -293,7 +293,6 @@ const main = async () => {
   RegisterTool(server, UpdatePurchaseTool);
   RegisterTool(server, DeletePurchaseTool);
   RegisterTool(server, SearchPurchasesTool);
-
   // Add tools for payments
   RegisterTool(server, CreatePaymentTool);
   RegisterTool(server, GetPaymentTool);
@@ -423,6 +422,9 @@ const main = async () => {
   RegisterTool(server, GetAgedPayablesTool);
   RegisterTool(server, GetVendorExpensesTool);
   RegisterTool(server, GetVendorBalanceTool);
+
+  // Consolidated report gateway for Doc2DB and MCP hosts
+  RegisterTool(server, GetReportTool);
 
   // Start receiving messages on stdin and sending messages on stdout
   const transport = new StdioServerTransport();

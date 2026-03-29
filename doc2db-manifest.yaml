@@ -1,0 +1,34 @@
+app_id: quickbooks-online-mcp-server
+name: Quickbooks Online Mcp Server
+version: 1.0.0
+type: standalone
+infrastructure:
+  compute:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+  secrets:
+  - name: QUICKBOOKS_CLIENT_ID
+    description: Auto-detected from source
+    required: false
+  - name: QUICKBOOKS_CLIENT_SECRET
+    description: Auto-detected from source
+    required: false
+  - name: QUICKBOOKS_REALM_ID
+    description: Auto-detected from source
+    required: false
+  - name: QUICKBOOKS_REDIRECTURI
+    description: Auto-detected from source
+    required: false
+  - name: QUICKBOOKS_REFRESH_TOKEN
+    description: Auto-detected from source
+    required: false
+ui:
+  panels:
+  - id: qbo-dashboard
+    label: QuickBooks Online
+    icon: DollarSign
+    entrypoint: web_ui/src/os_apps/quickbooks-online-mcp-serverPanel.tsx
