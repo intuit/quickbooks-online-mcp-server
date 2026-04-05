@@ -64,6 +64,11 @@ export async function executeDelete(entity: string, idOrEntity: any): Promise<an
   return callQB(config.methods.delete, idOrEntity);
 }
 
+export async function executeReport(methodName: string, options: any): Promise<any> {
+  await quickbooksClient.authenticate();
+  return callQB(methodName, options ?? {});
+}
+
 export async function executeSearch(entity: string, criteria: any): Promise<any[]> {
   const config = ENTITIES[entity];
   if (!config?.methods.find) {

@@ -473,6 +473,298 @@ export const ACTION_CATALOG: ActionEntry[] = [
       criteria: "Array of { field, value, operator? } or simple { key: value }",
     },
   },
+
+  // ── Reports ───────────────────────────────────────────────
+  {
+    id: "report_profit_and_loss",
+    entity: "report",
+    operation: "report",
+    description: "Profit and Loss (Income Statement) report. Shows revenue, expenses, and net income for a date range.",
+    parameterHints: {
+      options: "{ start_date?: 'YYYY-MM-DD', end_date?: 'YYYY-MM-DD', accounting_method?: 'Cash'|'Accrual', summarize_column_by?: 'Month'|'Week'|'Days'|'Quarter'|'Year'|'Total' }",
+    },
+    reportMethod: "reportProfitAndLoss",
+  },
+  {
+    id: "report_profit_and_loss_detail",
+    entity: "report",
+    operation: "report",
+    description: "Detailed Profit and Loss report with individual transaction line items.",
+    parameterHints: {
+      options: "{ start_date?: 'YYYY-MM-DD', end_date?: 'YYYY-MM-DD', accounting_method?: 'Cash'|'Accrual' }",
+    },
+    reportMethod: "reportProfitAndLossDetail",
+  },
+  {
+    id: "report_balance_sheet",
+    entity: "report",
+    operation: "report",
+    description: "Balance Sheet report. Shows assets, liabilities, and equity as of a specific date.",
+    parameterHints: {
+      options: "{ start_date?: 'YYYY-MM-DD', end_date?: 'YYYY-MM-DD', accounting_method?: 'Cash'|'Accrual', summarize_column_by?: 'Month'|'Quarter'|'Year'|'Total' }",
+    },
+    reportMethod: "reportBalanceSheet",
+  },
+  {
+    id: "report_cash_flow",
+    entity: "report",
+    operation: "report",
+    description: "Statement of Cash Flows. Shows operating, investing, and financing cash activities.",
+    parameterHints: {
+      options: "{ start_date?: 'YYYY-MM-DD', end_date?: 'YYYY-MM-DD', summarize_column_by?: 'Month'|'Quarter'|'Year'|'Total' }",
+    },
+    reportMethod: "reportCashFlow",
+  },
+  {
+    id: "report_trial_balance",
+    entity: "report",
+    operation: "report",
+    description: "Trial Balance report. Lists all accounts with their debit and credit balances.",
+    parameterHints: {
+      options: "{ start_date?: 'YYYY-MM-DD', end_date?: 'YYYY-MM-DD', accounting_method?: 'Cash'|'Accrual' }",
+    },
+    reportMethod: "reportTrialBalance",
+  },
+  {
+    id: "report_customer_sales",
+    entity: "report",
+    operation: "report",
+    description: "Customer Sales report. Shows total sales broken down by customer.",
+    parameterHints: {
+      options: "{ start_date?: 'YYYY-MM-DD', end_date?: 'YYYY-MM-DD', summarize_column_by?: 'Month'|'Quarter'|'Year'|'Total' }",
+    },
+    reportMethod: "reportCustomerSales",
+  },
+  {
+    id: "report_item_sales",
+    entity: "report",
+    operation: "report",
+    description: "Item Sales report. Shows total sales broken down by product/service item.",
+    parameterHints: {
+      options: "{ start_date?: 'YYYY-MM-DD', end_date?: 'YYYY-MM-DD', summarize_column_by?: 'Month'|'Quarter'|'Year'|'Total' }",
+    },
+    reportMethod: "reportItemSales",
+  },
+  {
+    id: "report_customer_income",
+    entity: "report",
+    operation: "report",
+    description: "Customer Income report. Shows income received from each customer.",
+    parameterHints: {
+      options: "{ start_date?: 'YYYY-MM-DD', end_date?: 'YYYY-MM-DD' }",
+    },
+    reportMethod: "reportCustomerIncome",
+  },
+  {
+    id: "report_customer_balance",
+    entity: "report",
+    operation: "report",
+    description: "Customer Balance Summary. Shows outstanding balances owed by each customer.",
+    parameterHints: {
+      options: "{ start_date?: 'YYYY-MM-DD', end_date?: 'YYYY-MM-DD' }",
+    },
+    reportMethod: "reportCustomerBalance",
+  },
+  {
+    id: "report_customer_balance_detail",
+    entity: "report",
+    operation: "report",
+    description: "Customer Balance Detail. Shows individual open transactions per customer.",
+    parameterHints: {
+      options: "{ start_date?: 'YYYY-MM-DD', end_date?: 'YYYY-MM-DD' }",
+    },
+    reportMethod: "reportCustomerBalanceDetail",
+  },
+  {
+    id: "report_aged_receivables",
+    entity: "report",
+    operation: "report",
+    description: "Aged Receivables Summary. Shows money owed to you grouped by aging period (Current, 1-30, 31-60, 61-90, 91+ days).",
+    parameterHints: {
+      options: "{ report_date?: 'YYYY-MM-DD', aging_period?: number }",
+    },
+    reportMethod: "reportAgedReceivables",
+  },
+  {
+    id: "report_aged_receivables_detail",
+    entity: "report",
+    operation: "report",
+    description: "Aged Receivables Detail. Shows individual overdue invoices grouped by aging period.",
+    parameterHints: {
+      options: "{ report_date?: 'YYYY-MM-DD', aging_period?: number }",
+    },
+    reportMethod: "reportAgedReceivableDetail",
+  },
+  {
+    id: "report_vendor_balance",
+    entity: "report",
+    operation: "report",
+    description: "Vendor Balance Summary. Shows outstanding balances owed to each vendor.",
+    parameterHints: {
+      options: "{ start_date?: 'YYYY-MM-DD', end_date?: 'YYYY-MM-DD' }",
+    },
+    reportMethod: "reportVendorBalance",
+  },
+  {
+    id: "report_vendor_balance_detail",
+    entity: "report",
+    operation: "report",
+    description: "Vendor Balance Detail. Shows individual open bills per vendor.",
+    parameterHints: {
+      options: "{ start_date?: 'YYYY-MM-DD', end_date?: 'YYYY-MM-DD' }",
+    },
+    reportMethod: "reportVendorBalanceDetail",
+  },
+  {
+    id: "report_aged_payables",
+    entity: "report",
+    operation: "report",
+    description: "Aged Payables Summary. Shows money you owe grouped by aging period (Current, 1-30, 31-60, 61-90, 91+ days).",
+    parameterHints: {
+      options: "{ report_date?: 'YYYY-MM-DD', aging_period?: number }",
+    },
+    reportMethod: "reportAgedPayables",
+  },
+  {
+    id: "report_aged_payables_detail",
+    entity: "report",
+    operation: "report",
+    description: "Aged Payables Detail. Shows individual overdue bills grouped by aging period.",
+    parameterHints: {
+      options: "{ report_date?: 'YYYY-MM-DD', aging_period?: number }",
+    },
+    reportMethod: "reportAgedPayableDetail",
+  },
+  {
+    id: "report_vendor_expenses",
+    entity: "report",
+    operation: "report",
+    description: "Vendor Expenses report. Shows total expenses broken down by vendor.",
+    parameterHints: {
+      options: "{ start_date?: 'YYYY-MM-DD', end_date?: 'YYYY-MM-DD', summarize_column_by?: 'Month'|'Quarter'|'Year'|'Total' }",
+    },
+    reportMethod: "reportVendorExpenses",
+  },
+  {
+    id: "report_transaction_list",
+    entity: "report",
+    operation: "report",
+    description: "Transaction List report. Shows all transactions for a date range.",
+    parameterHints: {
+      options: "{ start_date?: 'YYYY-MM-DD', end_date?: 'YYYY-MM-DD', columns?: 'tx_date,txn_type,name,memo,amount' }",
+    },
+    reportMethod: "reportTransactionList",
+  },
+  {
+    id: "report_transaction_list_with_splits",
+    entity: "report",
+    operation: "report",
+    description: "Transaction List with Splits. Shows all transactions with their line-item splits for a date range.",
+    parameterHints: {
+      options: "{ start_date?: 'YYYY-MM-DD', end_date?: 'YYYY-MM-DD' }",
+    },
+    reportMethod: "reportTransactionListWithSplits",
+  },
+  {
+    id: "report_transaction_list_by_customer",
+    entity: "report",
+    operation: "report",
+    description: "Transaction List by Customer. Shows all transactions grouped by customer.",
+    parameterHints: {
+      options: "{ start_date?: 'YYYY-MM-DD', end_date?: 'YYYY-MM-DD' }",
+    },
+    reportMethod: "reportTransactionListByCustomer",
+  },
+  {
+    id: "report_transaction_list_by_vendor",
+    entity: "report",
+    operation: "report",
+    description: "Transaction List by Vendor. Shows all transactions grouped by vendor.",
+    parameterHints: {
+      options: "{ start_date?: 'YYYY-MM-DD', end_date?: 'YYYY-MM-DD' }",
+    },
+    reportMethod: "reportTransactionListByVendor",
+  },
+  {
+    id: "report_general_ledger",
+    entity: "report",
+    operation: "report",
+    description: "General Ledger Detail. Shows all transactions posted to each account with running balances.",
+    parameterHints: {
+      options: "{ start_date?: 'YYYY-MM-DD', end_date?: 'YYYY-MM-DD', accounting_method?: 'Cash'|'Accrual' }",
+    },
+    reportMethod: "reportGeneralLedgerDetail",
+  },
+  {
+    id: "report_inventory_valuation",
+    entity: "report",
+    operation: "report",
+    description: "Inventory Valuation Summary. Shows quantity on hand, average cost, and total value per inventory item.",
+    parameterHints: {
+      options: "{ report_date?: 'YYYY-MM-DD' }",
+    },
+    reportMethod: "reportInventoryValuationSummary",
+  },
+  {
+    id: "report_tax_summary",
+    entity: "report",
+    operation: "report",
+    description: "Tax Summary report. Shows taxable and non-taxable sales and purchases with tax amounts.",
+    parameterHints: {
+      options: "{ start_date?: 'YYYY-MM-DD', end_date?: 'YYYY-MM-DD' }",
+    },
+    reportMethod: "reportTaxSummary",
+  },
+  {
+    id: "report_department_sales",
+    entity: "report",
+    operation: "report",
+    description: "Department Sales report. Shows sales broken down by department/location.",
+    parameterHints: {
+      options: "{ start_date?: 'YYYY-MM-DD', end_date?: 'YYYY-MM-DD', summarize_column_by?: 'Month'|'Quarter'|'Year'|'Total' }",
+    },
+    reportMethod: "reportDepartmentSales",
+  },
+  {
+    id: "report_class_sales",
+    entity: "report",
+    operation: "report",
+    description: "Class Sales report. Shows sales broken down by class.",
+    parameterHints: {
+      options: "{ start_date?: 'YYYY-MM-DD', end_date?: 'YYYY-MM-DD', summarize_column_by?: 'Month'|'Quarter'|'Year'|'Total' }",
+    },
+    reportMethod: "reportClassSales",
+  },
+  {
+    id: "report_account_list",
+    entity: "report",
+    operation: "report",
+    description: "Account List Detail. Shows all accounts with their types, detail types, descriptions, and balances.",
+    parameterHints: {
+      options: "{}",
+    },
+    reportMethod: "reportAccountListDetail",
+  },
+  {
+    id: "report_journal",
+    entity: "report",
+    operation: "report",
+    description: "Journal Report. Shows all journal entries with debits and credits for a date range.",
+    parameterHints: {
+      options: "{ start_date?: 'YYYY-MM-DD', end_date?: 'YYYY-MM-DD' }",
+    },
+    reportMethod: "reportJournalReport",
+  },
+  {
+    id: "report_trial_balance_fr",
+    entity: "report",
+    operation: "report",
+    description: "Trial Balance (France). French-localized trial balance report.",
+    parameterHints: {
+      options: "{ start_date?: 'YYYY-MM-DD', end_date?: 'YYYY-MM-DD' }",
+    },
+    reportMethod: "reportTrialBalanceFR",
+  },
 ];
 
 /** Simple keyword search over the action catalog. */

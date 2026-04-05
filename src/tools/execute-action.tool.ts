@@ -9,6 +9,7 @@ import {
   executeUpdate,
   executeDelete,
   executeSearch,
+  executeReport,
 } from "../handlers/generic-handler.js";
 import { formatError } from "../helpers/format-error.js";
 
@@ -30,7 +31,7 @@ export function registerExecuteAction(server: McpServer) {
     "execute_action",
     {
       description:
-        "Execute a QuickBooks action by its ID. Get the action_id and required params from search_actions first. For create/update: pass { data: {...} }. For get/delete: pass { id: 'the-id' }. For search: pass { criteria: [...], limit?, offset? }.",
+        "Execute a QuickBooks action by its ID. Get the action_id and required params from search_actions first. For create/update: pass { data: {...} }. For get/delete: pass { id: 'the-id' }. For search: pass { criteria: [...], limit?, offset? }. For reports: pass { options: { start_date?, end_date?, ... } }.",
       inputSchema,
       annotations: { openWorldHint: true },
     },
@@ -61,7 +62,7 @@ export function registerExecuteAction(server: McpServer) {
         };
       }
 
-      const label = config.label;
+      const label = config?.label ?? action.entity;
       const op = action.operation;
 
       try {
@@ -122,6 +123,23 @@ export function registerExecuteAction(server: McpServer) {
               content: [
                 { type: "text" as const, text: `Found ${count} ${label.toLowerCase()}(s).${suffix}` },
                 { type: "text" as const, text: JSON.stringify(truncated, null, 2) },
+              ],
+            };
+          }
+
+          case "report": {
+            const reportMethod = (action as any).reportMethod;
+            if (!reportMethod) {
+              return {
+                isError: true,
+                content: [{ type: "text" as const, text: `Report action "${action_id}" is missing reportMethod configuration.` }],
+              };
+            }
+            result = await executeReport(reportMethod, params.options ?? params);
+            return {
+              content: [
+                { type: "text" as const, text: `${action.description.split(".")[0]}:` },
+                { type: "text" as const, text: JSON.stringify(result, null, 2) },
               ],
             };
           }

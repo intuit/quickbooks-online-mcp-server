@@ -19,6 +19,7 @@ export class QuickbooksMCPServer {
             "QuickBooks IDs are opaque strings — never guess them. Always search first to get valid IDs before calling get/update/delete operations.",
             "Updates require the entity's current SyncToken for optimistic locking. Fetch the entity first with a get operation to obtain the SyncToken, then include it in the update payload.",
             "Deleting a Customer or Vendor sets Active=false (soft delete). Other entity deletes are hard deletes.",
+            "29 financial reports are available via search_actions (search 'report'): P&L, Balance Sheet, Cash Flow, Aged Receivables/Payables, Customer/Vendor/Item Sales, General Ledger, Trial Balance, and more. Pass date ranges via options: { start_date, end_date }.",
           ].join("\n"),
         },
       );

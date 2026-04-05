@@ -25,9 +25,11 @@ export interface ActionEntry {
   /** Entity key, e.g. "customer" */
   entity: string;
   /** Operation type */
-  operation: "create" | "get" | "update" | "delete" | "search";
+  operation: "create" | "get" | "update" | "delete" | "search" | "report";
   /** Human-readable description for Claude */
   description: string;
   /** JSON Schema describing the action's parameters (shown to Claude on search) */
   parameterHints: Record<string, string>;
+  /** For report operations: the node-quickbooks method name */
+  reportMethod?: string;
 }
