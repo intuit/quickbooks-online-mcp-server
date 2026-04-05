@@ -1,11 +1,7 @@
 // src/handlers/generic-handler.ts
 import { quickbooksClient } from "../clients/quickbooks-client.js";
 import { ENTITIES } from "../catalog/entity-config.js";
-import { formatError } from "../helpers/format-error.js";
-import {
-  buildQuickbooksSearchCriteria,
-  QuickbooksSearchCriteriaInput,
-} from "../helpers/build-quickbooks-search-criteria.js";
+import { buildQuickbooksSearchCriteria } from "../helpers/build-quickbooks-search-criteria.js";
 
 /**
  * Call a node-quickbooks method, promisifying the callback API.
