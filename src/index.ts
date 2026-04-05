@@ -2,6 +2,7 @@
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { QuickbooksMCPServer } from "./server/qbo-mcp-server.js";
+import { isReadOnly } from "./config.js";
 
 // Catalog tools (search + execute pattern)
 import { registerSearchActions } from "./tools/search-actions.tool.js";
@@ -21,12 +22,16 @@ const main = async () => {
   registerSearchActions(server);
   registerExecuteAction(server);
 
-  // Promoted tools — fast path for the 5 most common operations
+  // Promoted tools — search tools always available
   registerSearchCustomers(server);
-  registerCreateCustomer(server);
-  registerCreateInvoice(server);
   registerSearchInvoices(server);
   registerSearchAccounts(server);
+
+  // Write tools only registered when not in read-only mode
+  if (!isReadOnly) {
+    registerCreateCustomer(server);
+    registerCreateInvoice(server);
+  }
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

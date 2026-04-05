@@ -1,5 +1,6 @@
 // src/catalog/action-catalog.ts
 import { ActionEntry } from "./types.js";
+import { isWriteOperation } from "../config.js";
 
 export const ACTION_CATALOG: ActionEntry[] = [
   // ── Customer ──────────────────────────────────────────────
@@ -768,9 +769,12 @@ export const ACTION_CATALOG: ActionEntry[] = [
 ];
 
 /** Simple keyword search over the action catalog. */
-export function searchCatalog(intent: string, limit = 10): ActionEntry[] {
+export function searchCatalog(intent: string, limit = 10, readOnly = false): ActionEntry[] {
+  const candidates = readOnly
+    ? ACTION_CATALOG.filter((a) => !isWriteOperation(a.operation))
+    : ACTION_CATALOG;
   const terms = intent.toLowerCase().split(/\s+/);
-  const scored = ACTION_CATALOG.map((action) => {
+  const scored = candidates.map((action) => {
     const text = `${action.id} ${action.entity} ${action.operation} ${action.description}`.toLowerCase();
     const score = terms.reduce((sum, term) => sum + (text.includes(term) ? 1 : 0), 0);
     return { action, score };

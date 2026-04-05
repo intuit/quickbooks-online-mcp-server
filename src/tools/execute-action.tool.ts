@@ -12,6 +12,7 @@ import {
   executeReport,
 } from "../handlers/generic-handler.js";
 import { formatError } from "../helpers/format-error.js";
+import { isReadOnly, isWriteOperation } from "../config.js";
 
 const inputSchema = {
   action_id: z
@@ -44,6 +45,18 @@ export function registerExecuteAction(server: McpServer) {
             {
               type: "text" as const,
               text: `Unknown action "${action_id}". Use search_actions to find valid action IDs.`,
+            },
+          ],
+        };
+      }
+
+      if (isReadOnly && isWriteOperation(action.operation)) {
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text" as const,
+              text: `Server is in read-only mode. Write operation "${action_id}" (${action.operation}) is not allowed. Only search, get, and report operations are available.`,
             },
           ],
         };

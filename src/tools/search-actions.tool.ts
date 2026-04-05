@@ -2,6 +2,7 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { searchCatalog } from "../catalog/action-catalog.js";
+import { isReadOnly } from "../config.js";
 
 const inputSchema = {
   intent: z
@@ -28,7 +29,7 @@ export function registerSearchActions(server: McpServer) {
       annotations: { readOnlyHint: true },
     },
     async ({ intent, limit }) => {
-      const matches = searchCatalog(intent, limit);
+      const matches = searchCatalog(intent, limit, isReadOnly);
       if (matches.length === 0) {
         return {
           content: [
