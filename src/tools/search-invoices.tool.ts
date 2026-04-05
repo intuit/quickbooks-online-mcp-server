@@ -91,8 +91,8 @@ const advancedCriteriaSchema = z.object({
 
 // Runtime schema used internally for validation
 const RUNTIME_CRITERIA_SCHEMA = z.union([
-  z.record(z.any()),
-  z.array(z.record(z.any())),
+  z.record(z.string(), z.any()),
+  z.array(z.record(z.string(), z.any())),
   advancedCriteriaSchema,
 ]);
 

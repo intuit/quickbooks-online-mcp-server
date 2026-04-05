@@ -7,7 +7,7 @@ const toolDescription = "Update an existing invoice in Quickbooks by ID (sparse 
 
 const toolSchema = z.object({
   invoice_id: z.string().min(1),
-  patch: z.record(z.any()),
+  patch: z.record(z.string(), z.any()),
 });
 
 const toolHandler = async ({ params }: any) => {

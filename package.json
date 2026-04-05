@@ -11,7 +11,7 @@
     ],
     "scripts": {
       "build": "tsc && shx chmod +x dist/*.js",
-      "prepare": "npm run build",
+      "prepare": "bun run build",
       "watch": "tsc --watch",
       "lint:fix": "eslint --fix",
       "lint": "eslint .",
