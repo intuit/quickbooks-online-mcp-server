@@ -31,6 +31,10 @@ const inputSchema = {
     .describe("Billing address."),
 };
 
+/**
+ * Registers the create_customer tool for creating new customers in QuickBooks Online.
+ * @param server - The MCP server instance to register the tool on.
+ */
 export function registerCreateCustomer(server: McpServer) {
   server.registerTool(
     "create_customer",

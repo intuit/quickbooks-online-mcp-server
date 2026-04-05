@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "jsdoc-typescript-docs": {
+      "source": "patricio0312rev/skills",
+      "sourceType": "github",
+      "computedHash": "5b4f9de4974d5200db813921484dd4784c77bea7f3c0c79b31472e9546c374fd"
+    }
+  }
+}

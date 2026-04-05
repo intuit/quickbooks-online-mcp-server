@@ -1,11 +1,20 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { isReadOnly } from "../config.js";
 
+/**
+ * Singleton wrapper for the QuickBooks Online MCP Server.
+ * Provides lazy initialization and single instance management of the MCP server.
+ */
 export class QuickbooksMCPServer {
   private static instance: McpServer | null = null;
 
   private constructor() {}
 
+  /**
+   * Gets or creates the singleton MCP server instance.
+   * Initializes the server with capabilities, instructions, and registered tools.
+   * @returns The MCP server instance.
+   */
   public static GetServer(): McpServer {
     if (QuickbooksMCPServer.instance === null) {
       const lines = [

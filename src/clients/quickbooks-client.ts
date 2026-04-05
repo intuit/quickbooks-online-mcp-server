@@ -22,6 +22,10 @@ if (!client_id || !client_secret || !redirect_uri) {
   throw Error("Client ID, Client Secret and Redirect URI must be set in environment variables");
 }
 
+/**
+ * OAuth 2.0 client for the QuickBooks Online API.
+ * Handles token refresh, browser-based auth flow, and QuickBooks SDK instantiation.
+ */
 class QuickbooksClient {
   private readonly clientId: string;
   private readonly clientSecret: string;
@@ -243,6 +247,7 @@ class QuickbooksClient {
   }
 }
 
+/** Singleton QuickBooks client instance, configured from environment variables. */
 export const quickbooksClient = new QuickbooksClient({
   clientId: client_id,
   clientSecret: client_secret,

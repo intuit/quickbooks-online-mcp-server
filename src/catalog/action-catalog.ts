@@ -2,6 +2,10 @@
 import { ActionEntry } from "./types.js";
 import { isWriteOperation } from "../config.js";
 
+/**
+ * Complete catalog of available QuickBooks actions.
+ * Includes CRUD operations for 10 entity types plus 29 financial reports.
+ */
 export const ACTION_CATALOG: ActionEntry[] = [
   // ── Customer ──────────────────────────────────────────────
   {
@@ -768,7 +772,14 @@ export const ACTION_CATALOG: ActionEntry[] = [
   },
 ];
 
-/** Simple keyword search over the action catalog. */
+/**
+ * Searches the action catalog by intent string using keyword matching.
+ * Filters out write operations if in read-only mode.
+ * @param intent - Plain English description of the desired action (e.g., "create a customer").
+ * @param limit - Maximum number of results to return (default: 10).
+ * @param readOnly - If true, excludes write operations (create, update, delete).
+ * @returns Array of matching actions sorted by relevance score.
+ */
 export function searchCatalog(intent: string, limit = 10, readOnly = false): ActionEntry[] {
   const candidates = readOnly
     ? ACTION_CATALOG.filter((a) => !isWriteOperation(a.operation))

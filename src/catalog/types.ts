@@ -1,6 +1,9 @@
 // src/catalog/types.ts
 
-/** Configuration for a single QuickBooks entity type. */
+/**
+ * Configuration for a single QuickBooks entity type.
+ * Defines how to interact with a QB entity including CRUD operations and response mapping.
+ */
 export interface EntityConfig {
   /** Human-readable singular label, e.g. "Customer" */
   label: string;
@@ -18,7 +21,10 @@ export interface EntityConfig {
   softDelete?: boolean;
 }
 
-/** A single action in the catalog, discoverable via search_actions. */
+/**
+ * A single action in the catalog, discoverable via search_actions.
+ * Represents a supported operation on a QuickBooks entity that Claude can invoke.
+ */
 export interface ActionEntry {
   /** Unique action ID, e.g. "create_customer" */
   id: string;

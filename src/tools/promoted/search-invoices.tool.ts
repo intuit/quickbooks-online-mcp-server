@@ -36,6 +36,10 @@ const inputSchema = {
   desc: z.string().optional().describe("Sort descending by field."),
 };
 
+/**
+ * Registers the search_invoices tool for finding invoices in QuickBooks Online.
+ * @param server - The MCP server instance to register the tool on.
+ */
 export function registerSearchInvoices(server: McpServer) {
   server.registerTool(
     "search_invoices",

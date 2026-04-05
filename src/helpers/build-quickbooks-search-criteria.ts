@@ -1,3 +1,6 @@
+/**
+ * A single filter for QuickBooks search criteria.
+ */
 export interface QuickbooksFilter {
   /** Field/column name to filter on */
   field: string;
@@ -7,6 +10,9 @@ export interface QuickbooksFilter {
   operator?: string;
 }
 
+/**
+ * Advanced search options for QuickBooks queries with filtering, sorting, and pagination.
+ */
 export interface AdvancedQuickbooksSearchOptions {
   /** Array of filter objects that map to QuickBooks query filters */
   filters?: QuickbooksFilter[];
@@ -25,6 +31,9 @@ export interface AdvancedQuickbooksSearchOptions {
 }
 
 /**
+ * Union type for QuickBooks search criteria input.
+ * Can be a simple criteria object, an array of filter objects, or advanced search options.
+ *
  * User-supplied criteria can be one of:
  *  1. A simple criteria object (e.g. { Name: 'Foo' })
  *  2. An array of objects specifying field/value/operator
@@ -36,11 +45,14 @@ export type QuickbooksSearchCriteriaInput =
   | AdvancedQuickbooksSearchOptions;
 
 /**
- * Convert various input shapes into the criteria shape that `node-quickbooks` expects.
+ * Converts various input shapes into the criteria format expected by node-quickbooks.
  *
- * If the input is already an object or array that `node-quickbooks` understands, it is returned untouched.
+ * If the input is already an object or array that node-quickbooks understands, it is returned untouched.
  * If the input is an {@link AdvancedQuickbooksSearchOptions} instance, it is converted to an array of
- * `{field, value, operator}` objects.
+ * filter/sort/pagination objects.
+ *
+ * @param input The search criteria in any supported format
+ * @returns The criteria formatted for node-quickbooks (object or array)
  */
 export function buildQuickbooksSearchCriteria(
   input: QuickbooksSearchCriteriaInput

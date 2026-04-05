@@ -33,6 +33,10 @@ const inputSchema = {
   offset: z.number().int().min(0).default(0).describe("Skip N results."),
 };
 
+/**
+ * Registers the search_accounts tool for searching the chart of accounts in QuickBooks Online.
+ * @param server - The MCP server instance to register the tool on.
+ */
 export function registerSearchAccounts(server: McpServer) {
   server.registerTool(
     "search_accounts",

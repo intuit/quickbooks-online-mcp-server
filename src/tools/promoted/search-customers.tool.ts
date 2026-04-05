@@ -49,6 +49,10 @@ const inputSchema = {
   desc: z.string().optional().describe("Sort descending by this field name."),
 };
 
+/**
+ * Registers the search_customers tool for finding customers in QuickBooks Online.
+ * @param server - The MCP server instance to register the tool on.
+ */
 export function registerSearchCustomers(server: McpServer) {
   server.registerTool(
     "search_customers",

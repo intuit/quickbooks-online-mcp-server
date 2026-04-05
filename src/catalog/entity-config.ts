@@ -1,6 +1,10 @@
 // src/catalog/entity-config.ts
 import { EntityConfig } from "./types.js";
 
+/**
+ * Configuration map for all supported QuickBooks entities.
+ * Maps entity names to their EntityConfig with method names, response keys, and soft-delete settings.
+ */
 export const ENTITIES: Record<string, EntityConfig> = {
   customer: {
     label: "Customer",

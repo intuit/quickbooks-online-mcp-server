@@ -1,5 +1,14 @@
 #!/usr/bin/env node
 
+/**
+ * Entry point for the QuickBooks Online MCP Server.
+ * Initializes the server with all available tools:
+ * - Catalog tools: search_actions and execute_action for discovering and running any of 50 operations
+ * - Promoted tools: search_customers, create_customer, create_invoice, search_invoices, search_accounts
+ * - Write tools (create_customer, create_invoice) are only registered when not in read-only mode
+ * Connects to Claude via stdio transport for use as an MCP server.
+ */
+
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { QuickbooksMCPServer } from "./server/qbo-mcp-server.js";
 import { isReadOnly } from "./config.js";

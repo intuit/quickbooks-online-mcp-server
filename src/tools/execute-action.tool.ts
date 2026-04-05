@@ -27,6 +27,11 @@ const inputSchema = {
     ),
 };
 
+/**
+ * Registers the execute_action tool with the MCP server.
+ * Executes QuickBooks operations (create, get, update, delete, search, report) by action ID.
+ * @param server - The MCP server instance to register the tool with.
+ */
 export function registerExecuteAction(server: McpServer) {
   server.registerTool(
     "execute_action",

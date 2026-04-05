@@ -19,6 +19,11 @@ const inputSchema = {
     .describe("Max results to return. Default 10."),
 };
 
+/**
+ * Registers the search_actions tool with the MCP server.
+ * Searches the action catalog by intent and returns matching actions with descriptions and parameter hints.
+ * @param server - The MCP server instance to register the tool with.
+ */
 export function registerSearchActions(server: McpServer) {
   server.registerTool(
     "search_actions",

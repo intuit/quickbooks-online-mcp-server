@@ -47,6 +47,10 @@ const inputSchema = {
     .describe("Internal note (not shown to customer)."),
 };
 
+/**
+ * Registers the create_invoice tool for creating invoices in QuickBooks Online.
+ * @param server - The MCP server instance to register the tool on.
+ */
 export function registerCreateInvoice(server: McpServer) {
   server.registerTool(
     "create_invoice",
