@@ -50,7 +50,7 @@ export function registerExecuteAction(server: McpServer) {
       }
 
       const config = ENTITIES[action.entity];
-      if (!config) {
+      if (!config && action.operation !== "report") {
         return {
           isError: true,
           content: [
