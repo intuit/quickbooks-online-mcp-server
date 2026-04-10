@@ -27,7 +27,7 @@ const toolSchema = z.object({
 });
 
 const toolHandler = async (args: { [x: string]: any }) => {
-  const response = await updateQuickbooksBill(args.bill);
+  const response = await updateQuickbooksBill(args.params.bill);
 
   if (response.isError) {
     return {
