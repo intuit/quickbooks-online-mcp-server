@@ -12,7 +12,7 @@ const toolSchema = z.object({
 });
 
 const toolHandler = async (args: { [x: string]: any }) => {
-  const response = await deleteQuickbooksVendor(args.vendor);
+  const response = await deleteQuickbooksVendor(args.params.vendor);
 
   if (response.isError) {
     return {
