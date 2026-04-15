@@ -14,9 +14,7 @@ const lineSchema = z.object({
   Amount: z.number(),
   DetailType: z.string(),
   Description: z.string().optional(),
-  // Flat (legacy) — handler will auto-nest
-  AccountRef: refSchema.optional(),
-  // QBO-spec nested structure
+  // AccountRef must be nested inside detail type, not at top level (PR #31)
   AccountBasedExpenseLineDetail: z.object({
     AccountRef: refSchema,
     BillableStatus: z.string().optional(),
