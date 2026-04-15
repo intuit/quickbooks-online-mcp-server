@@ -22,7 +22,7 @@ const redirect_uri = process.env.QUICKBOOKS_REDIRECT_URI || 'http://localhost:80
 
 const isHttpTransport = process.env.MCP_TRANSPORT === 'streamable-http';
 
-// Only require client credentials for stdio mode (HTTP mode uses ToolHive for OAuth)
+// Only require client credentials for stdio mode (HTTP mode receives tokens via Authorization header)
 if (!isHttpTransport && (!client_id || !client_secret || !redirect_uri)) {
   throw Error("Client ID, Client Secret and Redirect URI must be set in environment variables");
 }
@@ -248,7 +248,7 @@ class QuickbooksClient {
   }
 }
 
-// Singleton for stdio mode (not created in HTTP mode where ToolHive handles OAuth)
+// Singleton for stdio mode (not created in HTTP mode where OAuth is handled externally)
 const stdioClient = !isHttpTransport
   ? new QuickbooksClient({
       clientId: client_id!,
@@ -265,22 +265,22 @@ export const quickbooksClient = stdioClient as QuickbooksClient;
 
 /**
  * Creates a per-request QuickBooks client using the provided access token.
- * Used in streamable-http mode where ToolHive injects the token via the
- * Authorization header on each request.
+ * Used in streamable-http mode where the upstream proxy or MCP client
+ * injects the token via the Authorization header on each request.
  */
 export function createQuickBooksClient(accessToken?: string): QuickBooks {
   const token = accessToken || getCurrentAccessToken();
   return new QuickBooks(
-    "",          // clientId — not needed, ToolHive handles OAuth
+    "",          // clientId — not needed, OAuth handled externally
     "",          // clientSecret — not needed
-    token,       // access token from ToolHive
+    token,       // access token from Authorization header
     false,       // no token secret (OAuth 2.0)
     realm_id || "",
     isSandbox,
     false,       // debug
     null,        // minor version
     "2.0",       // oauth version
-    ""           // refresh token — not needed, ToolHive handles refresh
+    ""           // refresh token — not needed, handled externally
   );
 }
 
