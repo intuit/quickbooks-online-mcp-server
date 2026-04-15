@@ -28,6 +28,9 @@
         "open": "^9.1.0",
         "zod": "^3.24.2"
     },
+    "overrides": {
+        "underscore": "^1.13.8"
+    },
     "devDependencies": {
         "@eslint/js": "^9.22.0",
         "@types/jest": "^30.0.0",
