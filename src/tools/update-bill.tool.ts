@@ -11,9 +11,11 @@ const toolSchema = z.object({
       Amount: z.number(),
       DetailType: z.string(),
       Description: z.string(),
-      AccountRef: z.object({
-        value: z.string(),
-        name: z.string().optional(),
+      AccountBasedExpenseLineDetail: z.object({
+        AccountRef: z.object({
+          value: z.string(),
+          name: z.string().optional(),
+        }),
       }),
     })),
     VendorRef: z.object({
