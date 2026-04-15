@@ -1,4 +1,4 @@
-import { quickbooksClient } from "../clients/quickbooks-client.js";
+import { getQuickbooks } from "../clients/quickbooks-client.js";
 import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
 
@@ -15,8 +15,7 @@ export interface CreateTermInput {
 
 export async function createQuickbooksTerm(data: CreateTermInput): Promise<ToolResponse<any>> {
   try {
-    await quickbooksClient.authenticate();
-    const quickbooks = quickbooksClient.getQuickbooks();
+    const quickbooks = await getQuickbooks();
     const payload: any = { Name: data.name };
     if (data.due_days !== undefined) payload.DueDays = data.due_days;
     if (data.discount_days !== undefined) payload.DiscountDays = data.discount_days;

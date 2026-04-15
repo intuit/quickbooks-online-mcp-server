@@ -1,9 +1,9 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { mockQuickbooksClient, mockQuickBooksInstance, resetAllMocks } from '../../mocks/quickbooks.mock';
+import { mockGetQuickbooks, mockQuickBooksInstance, resetAllMocks } from '../../mocks/quickbooks.mock';
 
 // ESM-compatible module mocking
 jest.unstable_mockModule('../../../src/clients/quickbooks-client', () => ({
-  quickbooksClient: mockQuickbooksClient,
+  getQuickbooks: mockGetQuickbooks,
 }));
 
 // Dynamic imports after mock setup
@@ -58,7 +58,7 @@ describe('TimeActivity Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await createQuickbooksTimeActivity({ name_of: 'Vendor' });
 
@@ -112,7 +112,7 @@ describe('TimeActivity Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await getQuickbooksTimeActivity('123');
 
@@ -158,7 +158,7 @@ describe('TimeActivity Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await updateQuickbooksTimeActivity({ id: '123', sync_token: '0' });
 
@@ -187,7 +187,7 @@ describe('TimeActivity Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await deleteQuickbooksTimeActivity({ id: '123', sync_token: '0' });
 
@@ -220,7 +220,7 @@ describe('TimeActivity Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await searchQuickbooksTimeActivities({});
 

@@ -1,4 +1,4 @@
-import { quickbooksClient } from "../clients/quickbooks-client.js";
+import { getQuickbooks } from "../clients/quickbooks-client.js";
 import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
 
@@ -9,8 +9,7 @@ export interface UpdateInvoiceInput {
 
 export async function updateQuickbooksInvoice({ invoice_id, patch }: UpdateInvoiceInput): Promise<ToolResponse<any>> {
   try {
-    await quickbooksClient.authenticate();
-    const quickbooks = quickbooksClient.getQuickbooks();
+    const quickbooks = await getQuickbooks();
 
     // Need SyncToken; fetch existing invoice first
     const existing: any = await new Promise((res, rej) => {

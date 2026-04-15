@@ -1,11 +1,10 @@
-import { quickbooksClient } from "../clients/quickbooks-client.js";
+import { getQuickbooks } from "../clients/quickbooks-client.js";
 import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
 
 export async function deleteQuickbooksTimeActivity(idOrEntity: any): Promise<ToolResponse<any>> {
   try {
-    await quickbooksClient.authenticate();
-    const quickbooks = quickbooksClient.getQuickbooks();
+    const quickbooks = await getQuickbooks();
     return new Promise((resolve) => {
       (quickbooks as any).deleteTimeActivity(idOrEntity, (err: any, response: any) => {
         if (err) resolve({ result: null, isError: true, error: formatError(err) });

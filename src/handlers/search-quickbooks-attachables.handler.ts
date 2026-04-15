@@ -1,4 +1,4 @@
-import { quickbooksClient } from "../clients/quickbooks-client.js";
+import { getQuickbooks } from "../clients/quickbooks-client.js";
 import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
 
@@ -10,8 +10,7 @@ export interface SearchAttachablesInput {
 
 export async function searchQuickbooksAttachables(data: SearchAttachablesInput): Promise<ToolResponse<any>> {
   try {
-    await quickbooksClient.authenticate();
-    const quickbooks = quickbooksClient.getQuickbooks();
+    const quickbooks = await getQuickbooks();
     const criteria: Record<string, any> = {};
     if (data.file_name) criteria.FileName = data.file_name;
     if (data.content_type) criteria.ContentType = data.content_type;

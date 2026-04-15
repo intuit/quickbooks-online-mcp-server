@@ -1,11 +1,16 @@
 #!/usr/bin/env node
 
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { QuickbooksMCPServer } from "./server/qbo-mcp-server.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { QuickbooksMCPServer, createMcpServer } from "./server/qbo-mcp-server.js";
+import { RegisterTool } from "./helpers/register-tool.js";
+import { authStorage } from "./clients/auth-context.js";
+import http from "node:http";
+
 // import { ListInvoicesTool } from "./tools/list-invoices.tool.js";
 // import { CreateCustomerTool } from "./tools/create-customer.tool.js";
 import { CreateInvoiceTool } from "./tools/create-invoice.tool.js";
-import { RegisterTool } from "./helpers/register-tool.js";
 import { ReadInvoiceTool } from "./tools/read-invoice.tool.js";
 import { SearchInvoicesTool } from "./tools/search-invoices.tool.js";
 import { UpdateInvoiceTool } from "./tools/update-invoice.tool.js";
@@ -197,230 +202,296 @@ import { GetAgedPayablesTool } from "./tools/get-aged-payables.tool.js";
 import { GetVendorExpensesTool } from "./tools/get-vendor-expenses.tool.js";
 import { GetVendorBalanceTool } from "./tools/get-vendor-balance.tool.js";
 
-const main = async () => {
-  // Create an MCP server
-  const server = QuickbooksMCPServer.GetServer();
-  // Add tools for customers
+function registerAllTools(server: McpServer) {
+  // Customers
   RegisterTool(server, CreateCustomerTool);
   RegisterTool(server, GetCustomerTool);
   RegisterTool(server, UpdateCustomerTool);
   RegisterTool(server, DeleteCustomerTool);
   RegisterTool(server, SearchCustomersTool);
-  // Add tools for estimates
+
+  // Estimates
   RegisterTool(server, CreateEstimateTool);
   RegisterTool(server, GetEstimateTool);
   RegisterTool(server, UpdateEstimateTool);
   RegisterTool(server, DeleteEstimateTool);
   RegisterTool(server, SearchEstimatesTool);
-  
-  // Add tools for bills
+
+  // Bills
   RegisterTool(server, CreateBillTool);
   RegisterTool(server, UpdateBillTool);
   RegisterTool(server, DeleteBillTool);
   RegisterTool(server, GetBillTool);
   RegisterTool(server, SearchBillsTool);
 
-
-  // Add tool to read a single invoice
+  // Invoices
   RegisterTool(server, ReadInvoiceTool);
-
-  // Add tool to search invoices
   RegisterTool(server, SearchInvoicesTool);
-
-  // Add tool to create invoice
   RegisterTool(server, CreateInvoiceTool);
-
-  // Add tool to update invoice
   RegisterTool(server, UpdateInvoiceTool);
   RegisterTool(server, DeleteInvoiceTool);
 
-  // Chart of accounts tools
+  // Accounts
   RegisterTool(server, CreateAccountTool);
   RegisterTool(server, GetAccountTool);
   RegisterTool(server, UpdateAccountTool);
   RegisterTool(server, SearchAccountsTool);
 
-  // Add tool to read item
+  // Items
   RegisterTool(server, ReadItemTool);
   RegisterTool(server, SearchItemsTool);
   RegisterTool(server, CreateItemTool);
   RegisterTool(server, UpdateItemTool);
   RegisterTool(server, DeleteItemTool);
 
-  // // Add a tool to create a customer
-  // RegisterTool(server, CreateCustomerTool);
-
-  // // Add tool to list accounts
-  // RegisterTool(server, ListAccountsTool);
-
-  // // Add tool to update a customer
-  // RegisterTool(server, UpdateCustomerTool);
-
-  // Add tools for vendors
+  // Vendors
   RegisterTool(server, CreateVendorTool);
   RegisterTool(server, UpdateVendorTool);
   RegisterTool(server, DeleteVendorTool);
   RegisterTool(server, GetVendorTool);
   RegisterTool(server, SearchVendorsTool);
 
-  // Add tools for employees
+  // Employees
   RegisterTool(server, CreateEmployeeTool);
   RegisterTool(server, GetEmployeeTool);
   RegisterTool(server, UpdateEmployeeTool);
   RegisterTool(server, DeleteEmployeeTool);
   RegisterTool(server, SearchEmployeesTool);
 
-  // Add tools for journal entries
+  // Journal Entries
   RegisterTool(server, CreateJournalEntryTool);
   RegisterTool(server, GetJournalEntryTool);
   RegisterTool(server, UpdateJournalEntryTool);
   RegisterTool(server, DeleteJournalEntryTool);
   RegisterTool(server, SearchJournalEntriesTool);
 
-  // Add tools for bill payments
+  // Bill Payments
   RegisterTool(server, CreateBillPaymentTool);
   RegisterTool(server, GetBillPaymentTool);
   RegisterTool(server, UpdateBillPaymentTool);
   RegisterTool(server, DeleteBillPaymentTool);
   RegisterTool(server, SearchBillPaymentsTool);
 
-  // Add tools for purchases
+  // Purchases
   RegisterTool(server, CreatePurchaseTool);
   RegisterTool(server, GetPurchaseTool);
   RegisterTool(server, UpdatePurchaseTool);
   RegisterTool(server, DeletePurchaseTool);
   RegisterTool(server, SearchPurchasesTool);
 
-  // Add tools for payments
+  // Payments
   RegisterTool(server, CreatePaymentTool);
   RegisterTool(server, GetPaymentTool);
   RegisterTool(server, UpdatePaymentTool);
   RegisterTool(server, DeletePaymentTool);
   RegisterTool(server, SearchPaymentsTool);
 
-  // Add tools for sales receipts
+  // Sales Receipts
   RegisterTool(server, CreateSalesReceiptTool);
   RegisterTool(server, GetSalesReceiptTool);
   RegisterTool(server, UpdateSalesReceiptTool);
   RegisterTool(server, DeleteSalesReceiptTool);
   RegisterTool(server, SearchSalesReceiptsTool);
 
-  // Add tools for credit memos
+  // Credit Memos
   RegisterTool(server, CreateCreditMemoTool);
   RegisterTool(server, GetCreditMemoTool);
   RegisterTool(server, UpdateCreditMemoTool);
   RegisterTool(server, DeleteCreditMemoTool);
   RegisterTool(server, SearchCreditMemosTool);
 
-  // Add tools for refund receipts
+  // Refund Receipts
   RegisterTool(server, CreateRefundReceiptTool);
   RegisterTool(server, GetRefundReceiptTool);
   RegisterTool(server, UpdateRefundReceiptTool);
   RegisterTool(server, DeleteRefundReceiptTool);
   RegisterTool(server, SearchRefundReceiptsTool);
 
-  // Add tools for purchase orders
+  // Purchase Orders
   RegisterTool(server, CreatePurchaseOrderTool);
   RegisterTool(server, GetPurchaseOrderTool);
   RegisterTool(server, UpdatePurchaseOrderTool);
   RegisterTool(server, DeletePurchaseOrderTool);
   RegisterTool(server, SearchPurchaseOrdersTool);
 
-  // Add tools for vendor credits
+  // Vendor Credits
   RegisterTool(server, CreateVendorCreditTool);
   RegisterTool(server, GetVendorCreditTool);
   RegisterTool(server, UpdateVendorCreditTool);
   RegisterTool(server, DeleteVendorCreditTool);
   RegisterTool(server, SearchVendorCreditsTool);
 
-  // Add tools for deposits
+  // Deposits
   RegisterTool(server, CreateDepositTool);
   RegisterTool(server, GetDepositTool);
   RegisterTool(server, UpdateDepositTool);
   RegisterTool(server, DeleteDepositTool);
   RegisterTool(server, SearchDepositsTool);
 
-  // Add tools for transfers
+  // Transfers
   RegisterTool(server, CreateTransferTool);
   RegisterTool(server, GetTransferTool);
   RegisterTool(server, UpdateTransferTool);
   RegisterTool(server, DeleteTransferTool);
   RegisterTool(server, SearchTransfersTool);
 
-  // Add tools for time activities
+  // Time Activities
   RegisterTool(server, CreateTimeActivityTool);
   RegisterTool(server, GetTimeActivityTool);
   RegisterTool(server, UpdateTimeActivityTool);
   RegisterTool(server, DeleteTimeActivityTool);
   RegisterTool(server, SearchTimeActivitiesTool);
 
-  // Add tools for classes
+  // Classes
   RegisterTool(server, CreateClassTool);
   RegisterTool(server, GetClassTool);
   RegisterTool(server, UpdateClassTool);
   RegisterTool(server, SearchClassesTool);
 
-  // Add tools for departments
+  // Departments
   RegisterTool(server, CreateDepartmentTool);
   RegisterTool(server, GetDepartmentTool);
   RegisterTool(server, UpdateDepartmentTool);
   RegisterTool(server, SearchDepartmentsTool);
 
-  // Add tools for terms
+  // Terms
   RegisterTool(server, CreateTermTool);
   RegisterTool(server, GetTermTool);
   RegisterTool(server, UpdateTermTool);
   RegisterTool(server, SearchTermsTool);
 
-  // Add tools for payment methods
+  // Payment Methods
   RegisterTool(server, CreatePaymentMethodTool);
   RegisterTool(server, GetPaymentMethodTool);
   RegisterTool(server, UpdatePaymentMethodTool);
   RegisterTool(server, SearchPaymentMethodsTool);
 
-  // Add tools for tax codes
+  // Tax Codes
   RegisterTool(server, GetTaxCodeTool);
   RegisterTool(server, SearchTaxCodesTool);
 
-  // Add tools for tax rates
+  // Tax Rates
   RegisterTool(server, GetTaxRateTool);
   RegisterTool(server, SearchTaxRatesTool);
 
-  // Add tools for tax agencies
+  // Tax Agencies
   RegisterTool(server, GetTaxAgencyTool);
   RegisterTool(server, SearchTaxAgenciesTool);
 
-  // Add tools for company info
+  // Company Info
   RegisterTool(server, GetCompanyInfoTool);
   RegisterTool(server, UpdateCompanyInfoTool);
 
-  // Add tools for attachables
+  // Attachables
   RegisterTool(server, CreateAttachableTool);
   RegisterTool(server, GetAttachableTool);
   RegisterTool(server, UpdateAttachableTool);
   RegisterTool(server, DeleteAttachableTool);
   RegisterTool(server, SearchAttachablesTool);
 
-  // Add financial report tools
+  // Financial Reports
   RegisterTool(server, GetBalanceSheetTool);
   RegisterTool(server, GetProfitAndLossTool);
   RegisterTool(server, GetCashFlowTool);
   RegisterTool(server, GetTrialBalanceTool);
   RegisterTool(server, GetGeneralLedgerTool);
 
-  // Add sales/AR report tools
+  // Sales/AR Reports
   RegisterTool(server, GetCustomerSalesTool);
   RegisterTool(server, GetAgedReceivablesTool);
   RegisterTool(server, GetCustomerBalanceTool);
 
-  // Add expense/AP report tools
+  // Expense/AP Reports
   RegisterTool(server, GetAgedPayablesTool);
   RegisterTool(server, GetVendorExpensesTool);
   RegisterTool(server, GetVendorBalanceTool);
+}
 
-  // Start receiving messages on stdin and sending messages on stdout
+async function startStdioTransport() {
+  const server = QuickbooksMCPServer.GetServer();
+  registerAllTools(server);
   const transport = new StdioServerTransport();
   await server.connect(transport);
+}
+
+async function startHttpTransport() {
+  const port = parseInt(process.env.PORT || "8000", 10);
+
+  const httpServer = http.createServer(async (req, res) => {
+    // Extract Bearer token from Authorization header
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+
+    // Run MCP handling inside AsyncLocalStorage context so tool handlers
+    // can access the per-request access token
+    authStorage.run({ accessToken: token }, async () => {
+      try {
+        const url = new URL(req.url || "/", `http://localhost:${port}`);
+
+        if (url.pathname === "/health") {
+          res.writeHead(200, { "Content-Type": "text/plain" });
+          res.end("ok");
+          return;
+        }
+
+        if (url.pathname !== "/mcp") {
+          res.writeHead(404);
+          res.end();
+          return;
+        }
+
+        if (req.method === "POST") {
+          // Stateless mode: new server + transport per request
+          const transport = new StreamableHTTPServerTransport({
+            sessionIdGenerator: undefined,
+          });
+          const server = createMcpServer();
+          registerAllTools(server);
+          await server.connect(transport);
+
+          // Parse request body
+          const body = await new Promise<string>((resolve) => {
+            let data = "";
+            req.on("data", (chunk: Buffer) => { data += chunk.toString(); });
+            req.on("end", () => resolve(data));
+          });
+
+          await transport.handleRequest(req, res, JSON.parse(body));
+        } else if (req.method === "GET") {
+          // SSE not supported in stateless mode
+          res.writeHead(405, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "SSE not supported in stateless mode" }));
+        } else if (req.method === "DELETE") {
+          // Session termination — no-op in stateless mode
+          res.writeHead(200);
+          res.end();
+        } else {
+          res.writeHead(405);
+          res.end();
+        }
+      } catch (error) {
+        console.error("Error handling MCP request:", error);
+        if (!res.headersSent) {
+          res.writeHead(500, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "Internal server error" }));
+        }
+      }
+    });
+  });
+
+  httpServer.listen(port, () => {
+    console.log(`QuickBooks MCP server listening on port ${port} (streamable-http)`);
+  });
+}
+
+const main = async () => {
+  const transportMode = process.env.MCP_TRANSPORT || "stdio";
+
+  if (transportMode === "streamable-http") {
+    await startHttpTransport();
+  } else {
+    await startStdioTransport();
+  }
 };
 
 main().catch((error) => {

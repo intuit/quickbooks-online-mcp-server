@@ -1,4 +1,4 @@
-import { quickbooksClient } from "../clients/quickbooks-client.js";
+import { getQuickbooks } from "../clients/quickbooks-client.js";
 import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
 
@@ -12,8 +12,7 @@ export interface VendorExpensesOptions {
 
 export async function getQuickbooksVendorExpenses(options: VendorExpensesOptions): Promise<ToolResponse<any>> {
   try {
-    await quickbooksClient.authenticate();
-    const quickbooks = quickbooksClient.getQuickbooks();
+    const quickbooks = await getQuickbooks();
     const params: Record<string, any> = {};
     if (options.start_date) params.start_date = options.start_date;
     if (options.end_date) params.end_date = options.end_date;

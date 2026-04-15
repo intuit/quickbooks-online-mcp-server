@@ -1,9 +1,9 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { mockQuickbooksClient, mockQuickBooksInstance, resetAllMocks } from '../../mocks/quickbooks.mock';
+import { mockGetQuickbooks, mockQuickBooksInstance, resetAllMocks } from '../../mocks/quickbooks.mock';
 
 // ESM-compatible module mocking
 jest.unstable_mockModule('../../../src/clients/quickbooks-client', () => ({
-  quickbooksClient: mockQuickbooksClient,
+  getQuickbooks: mockGetQuickbooks,
 }));
 
 // Dynamic imports after mock setup
@@ -43,7 +43,7 @@ describe('SalesReceipt Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await createQuickbooksSalesReceipt({ customer_ref: 'cust-1', line_items: [] });
 
@@ -94,7 +94,7 @@ describe('SalesReceipt Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await getQuickbooksSalesReceipt('123');
 
@@ -139,7 +139,7 @@ describe('SalesReceipt Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await updateQuickbooksSalesReceipt({ id: '123', sync_token: '0' });
 
@@ -168,7 +168,7 @@ describe('SalesReceipt Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await deleteQuickbooksSalesReceipt({ id: '123', sync_token: '0' });
 
@@ -201,7 +201,7 @@ describe('SalesReceipt Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await searchQuickbooksSalesReceipts({});
 

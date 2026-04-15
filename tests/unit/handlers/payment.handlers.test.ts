@@ -1,9 +1,9 @@
 import { jest, describe, it, expect, beforeEach, beforeAll } from '@jest/globals';
-import { mockQuickbooksClient, mockQuickBooksInstance, resetAllMocks } from '../../mocks/quickbooks.mock';
+import { mockGetQuickbooks, mockQuickBooksInstance, resetAllMocks } from '../../mocks/quickbooks.mock';
 
 // ESM-compatible module mocking
 jest.unstable_mockModule('../../../src/clients/quickbooks-client', () => ({
-  quickbooksClient: mockQuickbooksClient,
+  getQuickbooks: mockGetQuickbooks,
 }));
 
 // Dynamic imports after mock setup
@@ -42,7 +42,7 @@ describe('Payment Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await createQuickbooksPayment({ customer_ref: 'cust-1', total_amt: 100 });
 
@@ -95,7 +95,7 @@ describe('Payment Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await getQuickbooksPayment('123');
 
@@ -161,7 +161,7 @@ describe('Payment Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await updateQuickbooksPayment({ id: '123', sync_token: '0', total_amt: 150 });
 
@@ -193,7 +193,7 @@ describe('Payment Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await deleteQuickbooksPayment({ id: '123', sync_token: '0' });
 
@@ -237,7 +237,7 @@ describe('Payment Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await searchQuickbooksPayments({ limit: 10 });
 

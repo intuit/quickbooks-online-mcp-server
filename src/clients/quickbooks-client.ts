@@ -6,6 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import open from 'open';
+import { getCurrentAccessToken } from "./auth-context.js";
 
 dotenv.config();
 
@@ -15,11 +16,14 @@ const client_secret = process.env.QUICKBOOKS_CLIENT_SECRET;
 const refresh_token = process.env.QUICKBOOKS_REFRESH_TOKEN;
 const realm_id = process.env.QUICKBOOKS_REALM_ID;
 const environment = process.env.QUICKBOOKS_ENVIRONMENT || 'sandbox';
+const isSandbox = environment === 'sandbox';
 // Fix for Issue #5: Use env var with underscore (QUICKBOOKS_REDIRECT_URI)
 const redirect_uri = process.env.QUICKBOOKS_REDIRECT_URI || 'http://localhost:8000/callback';
 
-// Only throw error if client_id or client_secret is missing
-if (!client_id || !client_secret || !redirect_uri) {
+const isHttpTransport = process.env.MCP_TRANSPORT === 'streamable-http';
+
+// Only require client credentials for stdio mode (HTTP mode uses ToolHive for OAuth)
+if (!isHttpTransport && (!client_id || !client_secret || !redirect_uri)) {
   throw Error("Client ID, Client Secret and Redirect URI must be set in environment variables");
 }
 
@@ -244,11 +248,51 @@ class QuickbooksClient {
   }
 }
 
-export const quickbooksClient = new QuickbooksClient({
-  clientId: client_id,
-  clientSecret: client_secret,
-  refreshToken: refresh_token,
-  realmId: realm_id,
-  environment: environment,
-  redirectUri: redirect_uri,
-});
+// Singleton for stdio mode (not created in HTTP mode where ToolHive handles OAuth)
+const stdioClient = !isHttpTransport
+  ? new QuickbooksClient({
+      clientId: client_id!,
+      clientSecret: client_secret!,
+      refreshToken: refresh_token,
+      realmId: realm_id,
+      environment: environment,
+      redirectUri: redirect_uri,
+    })
+  : null;
+
+// Legacy export for auth-server.ts (only valid in stdio mode)
+export const quickbooksClient = stdioClient as QuickbooksClient;
+
+/**
+ * Creates a per-request QuickBooks client using the provided access token.
+ * Used in streamable-http mode where ToolHive injects the token via the
+ * Authorization header on each request.
+ */
+export function createQuickBooksClient(accessToken?: string): QuickBooks {
+  const token = accessToken || getCurrentAccessToken();
+  return new QuickBooks(
+    "",          // clientId — not needed, ToolHive handles OAuth
+    "",          // clientSecret — not needed
+    token,       // access token from ToolHive
+    false,       // no token secret (OAuth 2.0)
+    realm_id || "",
+    isSandbox,
+    false,       // debug
+    null,        // minor version
+    "2.0",       // oauth version
+    ""           // refresh token — not needed, ToolHive handles refresh
+  );
+}
+
+/**
+ * Gets a QuickBooks instance for the current request context.
+ * - stdio mode: authenticates using the singleton client (refreshes token if needed)
+ * - streamable-http mode: creates a per-request client with the injected access token
+ */
+export async function getQuickbooks(): Promise<QuickBooks> {
+  if (isHttpTransport) {
+    return createQuickBooksClient();
+  }
+  await stdioClient!.authenticate();
+  return stdioClient!.getQuickbooks();
+}

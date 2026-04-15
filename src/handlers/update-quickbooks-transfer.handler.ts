@@ -1,4 +1,4 @@
-import { quickbooksClient } from "../clients/quickbooks-client.js";
+import { getQuickbooks } from "../clients/quickbooks-client.js";
 import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
 
@@ -13,8 +13,7 @@ export interface UpdateTransferInput {
 
 export async function updateQuickbooksTransfer(data: UpdateTransferInput): Promise<ToolResponse<any>> {
   try {
-    await quickbooksClient.authenticate();
-    const quickbooks = quickbooksClient.getQuickbooks();
+    const quickbooks = await getQuickbooks();
     const payload: any = { Id: data.id, SyncToken: data.sync_token, sparse: true };
     if (data.from_account_ref) payload.FromAccountRef = { value: data.from_account_ref };
     if (data.to_account_ref) payload.ToAccountRef = { value: data.to_account_ref };

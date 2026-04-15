@@ -1,9 +1,9 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { mockQuickbooksClient, mockQuickBooksInstance, resetAllMocks } from '../../mocks/quickbooks.mock';
+import { mockGetQuickbooks, mockQuickBooksInstance, resetAllMocks } from '../../mocks/quickbooks.mock';
 
 // ESM-compatible module mocking
 jest.unstable_mockModule('../../../src/clients/quickbooks-client', () => ({
-  quickbooksClient: mockQuickbooksClient,
+  getQuickbooks: mockGetQuickbooks,
 }));
 
 // Dynamic imports after mock setup
@@ -60,7 +60,7 @@ describe('Report Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await getQuickbooksBalanceSheet({});
 
@@ -115,7 +115,7 @@ describe('Report Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await getQuickbooksProfitAndLoss({});
 
@@ -158,7 +158,7 @@ describe('Report Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await getQuickbooksCashFlow({});
 
@@ -201,7 +201,7 @@ describe('Report Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await getQuickbooksTrialBalance({});
 
@@ -247,7 +247,7 @@ describe('Report Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await getQuickbooksGeneralLedger({});
 
@@ -291,7 +291,7 @@ describe('Report Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await getQuickbooksCustomerSales({});
 
@@ -337,7 +337,7 @@ describe('Report Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await getQuickbooksAgedReceivables({});
 
@@ -380,7 +380,7 @@ describe('Report Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await getQuickbooksCustomerBalance({});
 
@@ -425,7 +425,7 @@ describe('Report Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await getQuickbooksAgedPayables({});
 
@@ -470,7 +470,7 @@ describe('Report Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await getQuickbooksVendorExpenses({});
 
@@ -513,7 +513,7 @@ describe('Report Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await getQuickbooksVendorBalance({});
 

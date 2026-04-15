@@ -1,9 +1,9 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { mockQuickbooksClient, mockQuickBooksInstance, resetAllMocks } from '../../mocks/quickbooks.mock';
+import { mockGetQuickbooks, mockQuickBooksInstance, resetAllMocks } from '../../mocks/quickbooks.mock';
 
 // ESM-compatible module mocking
 jest.unstable_mockModule('../../../src/clients/quickbooks-client', () => ({
-  quickbooksClient: mockQuickbooksClient,
+  getQuickbooks: mockGetQuickbooks,
 }));
 
 // Dynamic imports after mock setup
@@ -91,7 +91,7 @@ describe('Department, Term, PaymentMethod Handlers', () => {
       });
 
       it('should handle authentication errors', async () => {
-        (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+        (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
         const result = await searchQuickbooksDepartments({});
 
@@ -112,7 +112,7 @@ describe('Department, Term, PaymentMethod Handlers', () => {
     });
 
     it('should create department - authentication error', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await createQuickbooksDepartment({ name: 'Test' });
 
@@ -131,7 +131,7 @@ describe('Department, Term, PaymentMethod Handlers', () => {
     });
 
     it('should get department - authentication error', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await getQuickbooksDepartment('1');
 
@@ -150,7 +150,7 @@ describe('Department, Term, PaymentMethod Handlers', () => {
     });
 
     it('should update department - authentication error', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await updateQuickbooksDepartment({ id: '1', sync_token: '0' });
 
@@ -260,7 +260,7 @@ describe('Department, Term, PaymentMethod Handlers', () => {
       });
 
       it('should handle authentication errors', async () => {
-        (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+        (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
         const result = await searchQuickbooksTerms({});
 
@@ -281,7 +281,7 @@ describe('Department, Term, PaymentMethod Handlers', () => {
     });
 
     it('should create term - authentication error', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await createQuickbooksTerm({ name: 'Test', due_days: 30 });
 
@@ -300,7 +300,7 @@ describe('Department, Term, PaymentMethod Handlers', () => {
     });
 
     it('should get term - authentication error', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await getQuickbooksTerm('1');
 
@@ -319,7 +319,7 @@ describe('Department, Term, PaymentMethod Handlers', () => {
     });
 
     it('should update term - authentication error', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await updateQuickbooksTerm({ id: '1', sync_token: '0' });
 
@@ -403,7 +403,7 @@ describe('Department, Term, PaymentMethod Handlers', () => {
       });
 
       it('should handle authentication errors', async () => {
-        (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+        (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
         const result = await searchQuickbooksPaymentMethods({});
 
@@ -424,7 +424,7 @@ describe('Department, Term, PaymentMethod Handlers', () => {
     });
 
     it('should create payment method - authentication error', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await createQuickbooksPaymentMethod({ name: 'Test', type: 'NON_CREDIT_CARD' });
 
@@ -443,7 +443,7 @@ describe('Department, Term, PaymentMethod Handlers', () => {
     });
 
     it('should get payment method - authentication error', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await getQuickbooksPaymentMethod('1');
 
@@ -462,7 +462,7 @@ describe('Department, Term, PaymentMethod Handlers', () => {
     });
 
     it('should update payment method - authentication error', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await updateQuickbooksPaymentMethod({ id: '1', sync_token: '0' });
 

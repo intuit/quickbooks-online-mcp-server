@@ -1,4 +1,4 @@
-import { quickbooksClient } from "../clients/quickbooks-client.js";
+import { getQuickbooks } from "../clients/quickbooks-client.js";
 import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
 
@@ -10,8 +10,7 @@ export interface SearchTermsInput {
 
 export async function searchQuickbooksTerms(data: SearchTermsInput): Promise<ToolResponse<any>> {
   try {
-    await quickbooksClient.authenticate();
-    const quickbooks = quickbooksClient.getQuickbooks();
+    const quickbooks = await getQuickbooks();
     const criteria: Record<string, any> = {};
     if (data.name) criteria.Name = data.name;
     if (data.active !== undefined) criteria.Active = data.active;

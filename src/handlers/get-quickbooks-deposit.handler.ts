@@ -1,11 +1,10 @@
-import { quickbooksClient } from "../clients/quickbooks-client.js";
+import { getQuickbooks } from "../clients/quickbooks-client.js";
 import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
 
 export async function getQuickbooksDeposit(id: string): Promise<ToolResponse<any>> {
   try {
-    await quickbooksClient.authenticate();
-    const quickbooks = quickbooksClient.getQuickbooks();
+    const quickbooks = await getQuickbooks();
     return new Promise((resolve) => {
       (quickbooks as any).getDeposit(id, (err: any, deposit: any) => {
         if (err) resolve({ result: null, isError: true, error: formatError(err) });

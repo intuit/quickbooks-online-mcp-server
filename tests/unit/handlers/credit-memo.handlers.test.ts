@@ -1,9 +1,9 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { mockQuickbooksClient, mockQuickBooksInstance, resetAllMocks } from '../../mocks/quickbooks.mock';
+import { mockGetQuickbooks, mockQuickBooksInstance, resetAllMocks } from '../../mocks/quickbooks.mock';
 
 // ESM-compatible module mocking
 jest.unstable_mockModule('../../../src/clients/quickbooks-client', () => ({
-  quickbooksClient: mockQuickbooksClient,
+  getQuickbooks: mockGetQuickbooks,
 }));
 
 // Dynamic imports after mock setup
@@ -43,7 +43,7 @@ describe('CreditMemo Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await createQuickbooksCreditMemo({ customer_ref: 'cust-1', line_items: [] });
 
@@ -92,7 +92,7 @@ describe('CreditMemo Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await getQuickbooksCreditMemo('123');
 
@@ -122,7 +122,7 @@ describe('CreditMemo Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await updateQuickbooksCreditMemo({ id: '123', sync_token: '0' });
 
@@ -167,7 +167,7 @@ describe('CreditMemo Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await deleteQuickbooksCreditMemo({ id: '123', sync_token: '0' });
 
@@ -215,7 +215,7 @@ describe('CreditMemo Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await searchQuickbooksCreditMemos({});
 

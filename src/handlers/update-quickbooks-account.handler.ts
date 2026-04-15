@@ -1,4 +1,4 @@
-import { quickbooksClient } from "../clients/quickbooks-client.js";
+import { getQuickbooks } from "../clients/quickbooks-client.js";
 import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
 
@@ -48,8 +48,7 @@ function normalizePatch(patch: Record<string, any>): Record<string, any> {
 
 export async function updateQuickbooksAccount({ account_id, patch }: UpdateAccountInput): Promise<ToolResponse<any>> {
   try {
-    await quickbooksClient.authenticate();
-    const quickbooks = quickbooksClient.getQuickbooks();
+    const quickbooks = await getQuickbooks();
     const existing: any = await new Promise((res, rej) => {
       (quickbooks as any).getAccount(account_id, (e: any, acc: any) => (e ? rej(e) : res(acc)));
     });

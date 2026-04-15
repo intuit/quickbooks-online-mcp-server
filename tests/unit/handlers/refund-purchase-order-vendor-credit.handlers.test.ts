@@ -1,9 +1,9 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { mockQuickbooksClient, mockQuickBooksInstance, resetAllMocks } from '../../mocks/quickbooks.mock';
+import { mockGetQuickbooks, mockQuickBooksInstance, resetAllMocks } from '../../mocks/quickbooks.mock';
 
 // ESM-compatible module mocking
 jest.unstable_mockModule('../../../src/clients/quickbooks-client', () => ({
-  quickbooksClient: mockQuickbooksClient,
+  getQuickbooks: mockGetQuickbooks,
 }));
 
 // Dynamic imports after mock setup
@@ -57,7 +57,7 @@ describe('Refund, PurchaseOrder, VendorCredit Handlers', () => {
     });
 
     it('should create a refund receipt - authentication error', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await createQuickbooksRefundReceipt({
         customer_ref: 'cust-1',
@@ -90,7 +90,7 @@ describe('Refund, PurchaseOrder, VendorCredit Handlers', () => {
     });
 
     it('should get a refund receipt - authentication error', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await getQuickbooksRefundReceipt('1');
 
@@ -131,7 +131,7 @@ describe('Refund, PurchaseOrder, VendorCredit Handlers', () => {
     });
 
     it('should update a refund receipt - authentication error', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await updateQuickbooksRefundReceipt({ id: '1', sync_token: '0' });
 
@@ -158,7 +158,7 @@ describe('Refund, PurchaseOrder, VendorCredit Handlers', () => {
     });
 
     it('should delete a refund receipt - authentication error', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await deleteQuickbooksRefundReceipt({ id: '1', sync_token: '0' });
 
@@ -187,7 +187,7 @@ describe('Refund, PurchaseOrder, VendorCredit Handlers', () => {
     });
 
     it('should search refund receipts - authentication error', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await searchQuickbooksRefundReceipts({});
 
@@ -267,7 +267,7 @@ describe('Refund, PurchaseOrder, VendorCredit Handlers', () => {
     });
 
     it('should create a purchase order - authentication error', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await createQuickbooksPurchaseOrder({
         vendor_ref: 'vendor-1',
@@ -300,7 +300,7 @@ describe('Refund, PurchaseOrder, VendorCredit Handlers', () => {
     });
 
     it('should get a purchase order - authentication error', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await getQuickbooksPurchaseOrder('1');
 
@@ -341,7 +341,7 @@ describe('Refund, PurchaseOrder, VendorCredit Handlers', () => {
     });
 
     it('should update a purchase order - authentication error', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await updateQuickbooksPurchaseOrder({ id: '1', sync_token: '0' });
 
@@ -368,7 +368,7 @@ describe('Refund, PurchaseOrder, VendorCredit Handlers', () => {
     });
 
     it('should delete a purchase order - authentication error', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await deleteQuickbooksPurchaseOrder({ id: '1', sync_token: '0' });
 
@@ -397,7 +397,7 @@ describe('Refund, PurchaseOrder, VendorCredit Handlers', () => {
     });
 
     it('should search purchase orders - authentication error', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await searchQuickbooksPurchaseOrders({});
 
@@ -469,7 +469,7 @@ describe('Refund, PurchaseOrder, VendorCredit Handlers', () => {
     });
 
     it('should create a vendor credit - authentication error', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await createQuickbooksVendorCredit({
         vendor_ref: 'vendor-1',
@@ -502,7 +502,7 @@ describe('Refund, PurchaseOrder, VendorCredit Handlers', () => {
     });
 
     it('should get a vendor credit - authentication error', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await getQuickbooksVendorCredit('1');
 
@@ -542,7 +542,7 @@ describe('Refund, PurchaseOrder, VendorCredit Handlers', () => {
     });
 
     it('should update a vendor credit - authentication error', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await updateQuickbooksVendorCredit({ id: '1', sync_token: '0' });
 
@@ -569,7 +569,7 @@ describe('Refund, PurchaseOrder, VendorCredit Handlers', () => {
     });
 
     it('should delete a vendor credit - authentication error', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await deleteQuickbooksVendorCredit({ id: '1', sync_token: '0' });
 
@@ -598,7 +598,7 @@ describe('Refund, PurchaseOrder, VendorCredit Handlers', () => {
     });
 
     it('should search vendor credits - authentication error', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockGetQuickbooks as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await searchQuickbooksVendorCredits({});
 

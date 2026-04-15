@@ -1,4 +1,4 @@
-import { quickbooksClient } from "../clients/quickbooks-client.js";
+import { getQuickbooks } from "../clients/quickbooks-client.js";
 import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
 
@@ -16,8 +16,7 @@ import { formatError } from "../helpers/format-error.js";
  */
 export async function searchQuickbooksVendors(criteria: object | Array<Record<string, any>> = {}): Promise<ToolResponse<any[]>> {
   try {
-    await quickbooksClient.authenticate();
-    const quickbooks = quickbooksClient.getQuickbooks();
+    const quickbooks = await getQuickbooks();
 
     return new Promise((resolve) => {
       (quickbooks as any).findVendors(criteria as any, (err: any, vendors: any) => {
