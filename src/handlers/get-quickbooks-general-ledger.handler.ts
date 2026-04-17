@@ -24,7 +24,7 @@ export async function getQuickbooksGeneralLedger(options: GeneralLedgerOptions):
     if (options.sort_by) params.sort_by = options.sort_by;
 
     return new Promise((resolve) => {
-      (quickbooks as any).reportGeneralLedger(params, (err: any, report: any) => {
+      (quickbooks as any).reportGeneralLedgerDetail(params, (err: any, report: any) => {
         if (err) resolve({ result: null, isError: true, error: formatError(err) });
         else resolve({ result: report, isError: false, error: null });
       });
