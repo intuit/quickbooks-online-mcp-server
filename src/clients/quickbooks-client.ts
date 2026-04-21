@@ -7,9 +7,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import open from 'open';
 
-dotenv.config();
-
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
 const client_id = process.env.QUICKBOOKS_CLIENT_ID;
 const client_secret = process.env.QUICKBOOKS_CLIENT_SECRET;
 const refresh_token = process.env.QUICKBOOKS_REFRESH_TOKEN;
