@@ -7,9 +7,14 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import open from 'open';
 
-dotenv.config();
-
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Resolve .env relative to the installed module (../../.env from dist/clients/).
+// This matters when the MCP server is spawned by a host (e.g. Claude Code,
+// Cursor) whose working directory is not the project root — without this,
+// dotenv silently finds nothing and startup fails.
+dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
+
 const client_id = process.env.QUICKBOOKS_CLIENT_ID;
 const client_secret = process.env.QUICKBOOKS_CLIENT_SECRET;
 const refresh_token = process.env.QUICKBOOKS_REFRESH_TOKEN;
