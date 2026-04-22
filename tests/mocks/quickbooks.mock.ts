@@ -210,11 +210,16 @@ export const mockQuickBooksInstance = {
   reportSalesTaxLiability: jest.fn(),
 };
 
-// Mock QuickBooks client
+// Mock QuickBooks client (legacy singleton — kept for backward compat)
 export const mockQuickbooksClient = {
   authenticate: jest.fn<() => Promise<typeof mockQuickBooksInstance>>().mockResolvedValue(mockQuickBooksInstance),
   getQuickbooks: jest.fn<() => typeof mockQuickBooksInstance>().mockReturnValue(mockQuickBooksInstance),
   refreshAccessToken: jest.fn<() => Promise<{ access_token: string; expires_in: number }>>().mockResolvedValue({ access_token: 'mock-token', expires_in: 3600 }),
+};
+
+// Mock QuickbooksClient class (PR #41 pattern — handlers call getInstance())
+export const MockQuickbooksClient = {
+  getInstance: jest.fn<() => Promise<typeof mockQuickBooksInstance>>().mockResolvedValue(mockQuickBooksInstance),
 };
 
 // Helper to create a successful callback mock
@@ -252,4 +257,6 @@ export function resetAllMocks() {
   mockQuickbooksClient.getQuickbooks.mockReset();
   (mockQuickbooksClient.getQuickbooks as any).mockReturnValue(mockQuickBooksInstance);
   (mockQuickbooksClient.authenticate as any).mockResolvedValue(mockQuickBooksInstance);
+  (MockQuickbooksClient.getInstance as any).mockReset();
+  (MockQuickbooksClient.getInstance as any).mockResolvedValue(mockQuickBooksInstance);
 }

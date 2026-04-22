@@ -1,4 +1,4 @@
-import { quickbooksClient } from "../clients/quickbooks-client.js";
+import { QuickbooksClient } from "../clients/quickbooks-client.js";
 import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
 import * as fs from "fs";
@@ -15,8 +15,7 @@ export async function downloadQuickbooksAttachable(
   outputPath?: string
 ): Promise<ToolResponse<{ filePath: string; fileName: string }>> {
   try {
-    await quickbooksClient.authenticate();
-    const quickbooks = quickbooksClient.getQuickbooks();
+    const quickbooks = await QuickbooksClient.getInstance();
 
     // First get the attachable metadata
     const attachable = await new Promise<any>((resolve, reject) => {

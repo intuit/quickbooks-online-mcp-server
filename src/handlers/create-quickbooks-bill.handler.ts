@@ -1,4 +1,4 @@
-import { quickbooksClient } from "../clients/quickbooks-client.js";
+import { QuickbooksClient } from "../clients/quickbooks-client.js";
 import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
 
@@ -7,8 +7,7 @@ import { formatError } from "../helpers/format-error.js";
  */
 export async function createQuickbooksBill(bill: any): Promise<ToolResponse<any>> {
   try {
-    await quickbooksClient.authenticate();
-    const quickbooks = quickbooksClient.getQuickbooks();
+    const quickbooks = await QuickbooksClient.getInstance();
 
     // Auto-nest flat line items into QBO's expected nested structure.
     // If caller sends AccountRef at line level (legacy shape), move it under AccountBasedExpenseLineDetail.

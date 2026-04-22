@@ -1,4 +1,4 @@
-import { quickbooksClient } from "../clients/quickbooks-client.js";
+import { QuickbooksClient } from "../clients/quickbooks-client.js";
 import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
 
@@ -8,9 +8,7 @@ import { formatError } from "../helpers/format-error.js";
  */
 export async function getQuickbooksAttachable(id: string): Promise<ToolResponse<any>> {
   try {
-    await quickbooksClient.authenticate();
-    const quickbooks = quickbooksClient.getQuickbooks();
-
+    const quickbooks = await QuickbooksClient.getInstance();
     return new Promise((resolve) => {
       quickbooks.getAttachable(id, (err: any, attachable: any) => {
         if (err) {

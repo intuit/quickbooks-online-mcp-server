@@ -1,9 +1,9 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { mockQuickbooksClient, mockQuickBooksInstance, resetAllMocks } from '../../mocks/quickbooks.mock';
+import { MockQuickbooksClient, mockQuickBooksInstance, resetAllMocks } from '../../mocks/quickbooks.mock';
 
 // ESM-compatible module mocking
 jest.unstable_mockModule('../../../src/clients/quickbooks-client', () => ({
-  quickbooksClient: mockQuickbooksClient,
+  QuickbooksClient: MockQuickbooksClient,
 }));
 
 // Dynamic imports after mock setup
@@ -46,7 +46,7 @@ describe('Bill Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (MockQuickbooksClient.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await createQuickbooksBill({});
 
@@ -77,7 +77,7 @@ describe('Bill Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (MockQuickbooksClient.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await getQuickbooksBill('1');
 
@@ -108,7 +108,7 @@ describe('Bill Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (MockQuickbooksClient.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await updateQuickbooksBill({ Id: '1', SyncToken: '0' });
 
@@ -139,7 +139,7 @@ describe('Bill Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (MockQuickbooksClient.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await deleteQuickbooksBill({ Id: '1', SyncToken: '0' });
 
@@ -218,7 +218,7 @@ describe('Bill Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (MockQuickbooksClient.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await searchQuickbooksBills({});
 

@@ -1,9 +1,9 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { mockQuickbooksClient, mockQuickBooksInstance, resetAllMocks } from '../../mocks/quickbooks.mock';
+import { MockQuickbooksClient, mockQuickBooksInstance, resetAllMocks } from '../../mocks/quickbooks.mock';
 
 // ESM-compatible module mocking
 jest.unstable_mockModule('../../../src/clients/quickbooks-client', () => ({
-  quickbooksClient: mockQuickbooksClient,
+  QuickbooksClient: MockQuickbooksClient,
 }));
 
 // Dynamic imports after mock setup
@@ -51,7 +51,7 @@ describe('search_purchases – Fixes #14', () => {
   });
 
   it('should handle authentication errors', async () => {
-    (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+    (MockQuickbooksClient.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
     const result = await searchQuickbooksPurchases({});
 
@@ -101,7 +101,7 @@ describe('search_employees – Fixes #15', () => {
   });
 
   it('should handle authentication errors', async () => {
-    (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+    (MockQuickbooksClient.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
     const result = await searchQuickbooksEmployees({});
 

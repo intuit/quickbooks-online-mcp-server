@@ -1,4 +1,4 @@
-import { quickbooksClient } from "../clients/quickbooks-client.js";
+import { QuickbooksClient } from "../clients/quickbooks-client.js";
 import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
 import * as fs from "fs";
@@ -40,8 +40,7 @@ export async function uploadQuickbooksAttachable(
       };
     }
 
-    await quickbooksClient.authenticate();
-    const quickbooks = quickbooksClient.getQuickbooks();
+    const quickbooks = await QuickbooksClient.getInstance();
 
     const fileName = path.basename(filePath);
     const ext = path.extname(filePath).toLowerCase();

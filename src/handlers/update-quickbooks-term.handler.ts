@@ -1,4 +1,4 @@
-import { quickbooksClient } from "../clients/quickbooks-client.js";
+import { QuickbooksClient } from "../clients/quickbooks-client.js";
 import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
 
@@ -14,8 +14,7 @@ export interface UpdateTermInput {
 
 export async function updateQuickbooksTerm(data: UpdateTermInput): Promise<ToolResponse<any>> {
   try {
-    await quickbooksClient.authenticate();
-    const quickbooks = quickbooksClient.getQuickbooks();
+    const quickbooks = await QuickbooksClient.getInstance();
     const payload: any = { Id: data.id, SyncToken: data.sync_token, sparse: true };
     if (data.name) payload.Name = data.name;
     if (data.active !== undefined) payload.Active = data.active;
