@@ -160,9 +160,9 @@ class QuickbooksClient {
 
   private saveTokensToEnv(): void {
     const tokenPath = path.join(__dirname, '..', '..', '.env');
-    const envContent = fs.readFileSync(tokenPath, 'utf-8');
+    const envContent = fs.existsSync(tokenPath) ? fs.readFileSync(tokenPath, 'utf-8') : '';
     const envLines = envContent.split('\n');
-    
+
     const updateEnvVar = (name: string, value: string) => {
       const index = envLines.findIndex(line => line.startsWith(`${name}=`));
       if (index !== -1) {
@@ -175,36 +175,95 @@ class QuickbooksClient {
     if (this.refreshToken) updateEnvVar('QUICKBOOKS_REFRESH_TOKEN', this.refreshToken);
     if (this.realmId) updateEnvVar('QUICKBOOKS_REALM_ID', this.realmId);
 
-    fs.writeFileSync(tokenPath, envLines.join('\n'));
+    // Atomic write: write to a sibling temp file, then rename. On POSIX rename
+    // is atomic within the same filesystem, so a crash mid-write cannot leave
+    // .env half-written or empty.
+    const tmpPath = `${tokenPath}.tmp.${process.pid}`;
+    try {
+      fs.writeFileSync(tmpPath, envLines.join('\n'), { mode: 0o600 });
+      fs.renameSync(tmpPath, tokenPath);
+    } catch (err) {
+      try { fs.unlinkSync(tmpPath); } catch { /* best effort */ }
+      throw err;
+    }
   }
+
+  // Shared in-flight refresh promise so that concurrent callers all await the
+  // same network request rather than racing to use (and rotate) the refresh
+  // token simultaneously.
+  private refreshInFlight?: Promise<{ access_token: string; expires_in: number }>;
 
   async refreshAccessToken() {
     if (!this.refreshToken) {
       await this.startOAuthFlow();
-      
+
       // Verify we have a refresh token after OAuth flow
       if (!this.refreshToken) {
         throw new Error('Failed to obtain refresh token from OAuth flow');
       }
     }
 
-    try {
-      // At this point we know refreshToken is not undefined
-      const authResponse = await this.oauthClient.refreshUsingToken(this.refreshToken);
-      
-      this.accessToken = authResponse.token.access_token;
-      
-      // Calculate expiry time
-      const expiresIn = authResponse.token.expires_in || 3600; // Default to 1 hour
-      this.accessTokenExpiry = new Date(Date.now() + expiresIn * 1000);
-      
-      return {
-        access_token: this.accessToken,
-        expires_in: expiresIn,
-      };
-    } catch (error: any) {
-      throw new Error(`Failed to refresh Quickbooks token: ${error.message}`);
+    if (this.refreshInFlight) {
+      return this.refreshInFlight;
     }
+
+    this.refreshInFlight = (async () => {
+      try {
+        // At this point we know refreshToken is not undefined
+        const authResponse = await this.oauthClient.refreshUsingToken(this.refreshToken!);
+
+        // The intuit-oauth type declarations are incomplete — the runtime
+        // token object also contains refresh_token, x_refresh_token_expires_in,
+        // token_type, realmId, etc. Widen the type to reach those fields.
+        const token = authResponse.token as unknown as {
+          access_token: string;
+          expires_in?: number;
+          refresh_token?: string;
+          x_refresh_token_expires_in?: number;
+        };
+
+        this.accessToken = token.access_token;
+
+        const expiresIn = token.expires_in || 3600;
+        this.accessTokenExpiry = new Date(Date.now() + expiresIn * 1000);
+
+        // Intuit rotates the refresh token (typically every ~24h). When a new
+        // one is issued we MUST persist it — the old value in .env becomes
+        // stale and will eventually stop working, silently breaking refresh.
+        const newRefreshToken = token.refresh_token;
+        if (newRefreshToken && newRefreshToken !== this.refreshToken) {
+          this.refreshToken = newRefreshToken;
+          try {
+            this.saveTokensToEnv();
+            console.error('[qbo-client] Refresh token rotated and persisted to .env');
+          } catch (persistErr) {
+            // Don't fail the whole refresh just because we couldn't write to
+            // disk; the in-memory token is still valid for this process.
+            console.error('[qbo-client] Failed to persist rotated refresh token:', persistErr);
+          }
+        }
+
+        // Surface the refresh token's own remaining lifetime for observability.
+        // Intuit's refresh tokens last 100 days; warn when under 14 days.
+        const refreshExpiresIn = token.x_refresh_token_expires_in;
+        if (typeof refreshExpiresIn === 'number' && refreshExpiresIn < 14 * 24 * 3600) {
+          const days = Math.round(refreshExpiresIn / 86400);
+          console.error(`[qbo-client] WARNING: refresh token expires in ~${days} day(s). Re-run \`npm run auth\` before it expires.`);
+        }
+
+        return {
+          access_token: this.accessToken!,
+          expires_in: expiresIn,
+        };
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(`Failed to refresh Quickbooks token: ${message}`);
+      } finally {
+        this.refreshInFlight = undefined;
+      }
+    })();
+
+    return this.refreshInFlight;
   }
 
   async authenticate() {
