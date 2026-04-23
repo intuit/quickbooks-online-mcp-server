@@ -1,3 +1,20 @@
+# QuickBooks Online MCP Server — Community-Patched Fork
+
+> **This is a fork of [intuit/quickbooks-online-mcp-server](https://github.com/intuit/quickbooks-online-mcp-server)** with cherry-picked community bug fixes that haven't been merged upstream yet. Use the `jrvis-patches` branch for the patched version.
+
+## Integrated Community PRs
+
+| PR | Author | Summary |
+|----|--------|---------|
+| [#40](https://github.com/intuit/quickbooks-online-mcp-server/pull/40) | @sebuh-infsol | **Fix rotating refresh token** — persist Intuit-rotated refresh tokens back to `.env` atomically; resolve `.env` path relative to module (not cwd); concurrent-refresh guard; headless OAuth flow |
+| [#18](https://github.com/intuit/quickbooks-online-mcp-server/pull/18) | @EricGrill | **Fix search envelope unwrapping** — `search_purchases` and `search_employees` return entity arrays instead of raw SDK `QueryResponse` envelopes; preserve `criteria` filters |
+| [#22](https://github.com/intuit/quickbooks-online-mcp-server/pull/22) | @aromer | **Fix bill/vendor handlers** — 8 bill/vendor tool handlers unwrap `args.params` correctly (fixes [#20](https://github.com/intuit/quickbooks-online-mcp-server/issues/20)) |
+| [#12](https://github.com/intuit/quickbooks-online-mcp-server/pull/12) | @caffeinebounce | **Schema fixes + attachable tools** — nest `AccountRef` inside `AccountBasedExpenseLineDetail`, add `ClassRef` support, add `SyncToken` to update schemas, add Download/Upload attachable tools |
+
+All conflicts resolved. Build verified clean.
+
+---
+
 # QuickBooks Online MCP Server
 
 <div align="center">
