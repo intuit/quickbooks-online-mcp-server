@@ -197,9 +197,7 @@ import { GetAgedPayablesTool } from "./tools/get-aged-payables.tool.js";
 import { GetVendorExpensesTool } from "./tools/get-vendor-expenses.tool.js";
 import { GetVendorBalanceTool } from "./tools/get-vendor-balance.tool.js";
 
-// Attachable tools
-import { GetAttachableTool } from "./tools/get-attachable.tool.js";
-import { SearchAttachablesTool } from "./tools/search-attachables.tool.js";
+// Attachable tools (download/upload from PR #12)
 import { DownloadAttachableTool } from "./tools/download-attachable.tool.js";
 import { UploadAttachableTool } from "./tools/upload-attachable.tool.js";
 
@@ -424,9 +422,7 @@ const main = async () => {
   RegisterTool(server, GetVendorExpensesTool);
   RegisterTool(server, GetVendorBalanceTool);
 
-  // Add tools for attachables
-  RegisterTool(server, GetAttachableTool);
-  RegisterTool(server, SearchAttachablesTool);
+  // Add tools for attachables (download/upload from PR #12)
   RegisterTool(server, DownloadAttachableTool);
   RegisterTool(server, UploadAttachableTool);
 
