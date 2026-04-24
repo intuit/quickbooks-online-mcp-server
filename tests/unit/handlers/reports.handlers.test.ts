@@ -1,9 +1,10 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { mockQuickbooksClient, mockQuickBooksInstance, resetAllMocks } from '../../mocks/quickbooks.mock';
+import { mockQuickbooksClient, mockQuickbooksClientClass, mockQuickBooksInstance, resetAllMocks } from '../../mocks/quickbooks.mock';
 
 // ESM-compatible module mocking
 jest.unstable_mockModule('../../../src/clients/quickbooks-client', () => ({
   quickbooksClient: mockQuickbooksClient,
+  QuickbooksClient: mockQuickbooksClientClass,
 }));
 
 // Dynamic imports after mock setup
@@ -213,7 +214,7 @@ describe('Report Handlers', () => {
   describe('getQuickbooksGeneralLedger', () => {
     it('should get general ledger report', async () => {
       const mockReport = { Header: { ReportName: 'GeneralLedger' } };
-      mockQuickBooksInstance.reportGeneralLedger.mockImplementation((params: any, cb: any) => cb(null, mockReport));
+      mockQuickBooksInstance.reportGeneralLedgerDetail.mockImplementation((params: any, cb: any) => cb(null, mockReport));
 
       const result = await getQuickbooksGeneralLedger({ account: '1', source_account: '2', sort_by: 'Date' });
 
@@ -222,7 +223,7 @@ describe('Report Handlers', () => {
 
     it('should handle all options', async () => {
       const mockReport = { Header: {} };
-      mockQuickBooksInstance.reportGeneralLedger.mockImplementation((params: any, cb: any) => cb(null, mockReport));
+      mockQuickBooksInstance.reportGeneralLedgerDetail.mockImplementation((params: any, cb: any) => cb(null, mockReport));
 
       const result = await getQuickbooksGeneralLedger({
         start_date: '2024-01-01',
@@ -237,7 +238,7 @@ describe('Report Handlers', () => {
     });
 
     it('should handle API errors', async () => {
-      mockQuickBooksInstance.reportGeneralLedger.mockImplementation((params: any, cb: any) =>
+      mockQuickBooksInstance.reportGeneralLedgerDetail.mockImplementation((params: any, cb: any) =>
         cb(new Error('Report failed'), null)
       );
 

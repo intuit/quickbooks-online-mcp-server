@@ -198,6 +198,7 @@ export const mockQuickBooksInstance = {
   reportCashFlow: jest.fn(),
   reportTrialBalance: jest.fn(),
   reportGeneralLedger: jest.fn(),
+  reportGeneralLedgerDetail: jest.fn(),
   reportCustomerSales: jest.fn(),
   reportItemSales: jest.fn(),
   reportAgedReceivables: jest.fn(),
@@ -215,6 +216,11 @@ export const mockQuickbooksClient = {
   authenticate: jest.fn<() => Promise<typeof mockQuickBooksInstance>>().mockResolvedValue(mockQuickBooksInstance),
   getQuickbooks: jest.fn<() => typeof mockQuickBooksInstance>().mockReturnValue(mockQuickBooksInstance),
   refreshAccessToken: jest.fn<() => Promise<{ access_token: string; expires_in: number }>>().mockResolvedValue({ access_token: 'mock-token', expires_in: 3600 }),
+};
+
+/** Static entry point used by handlers after PR #41 — delegates to `authenticate` so auth-failure tests keep working */
+export const mockQuickbooksClientClass = {
+  getInstance: jest.fn(async (): Promise<typeof mockQuickBooksInstance> => mockQuickbooksClient.authenticate()),
 };
 
 // Helper to create a successful callback mock
@@ -252,4 +258,7 @@ export function resetAllMocks() {
   mockQuickbooksClient.getQuickbooks.mockReset();
   (mockQuickbooksClient.getQuickbooks as any).mockReturnValue(mockQuickBooksInstance);
   (mockQuickbooksClient.authenticate as any).mockResolvedValue(mockQuickBooksInstance);
+
+  mockQuickbooksClientClass.getInstance.mockReset();
+  mockQuickbooksClientClass.getInstance.mockImplementation(async () => mockQuickbooksClient.authenticate());
 }

@@ -10,8 +10,27 @@ export async function createQuickbooksBill(bill: any): Promise<ToolResponse<any>
     await quickbooksClient.authenticate();
     const quickbooks = quickbooksClient.getQuickbooks();
 
+    // Auto-nest flat line items into QBO's expected nested structure.
+    // If caller sends AccountRef at line level (legacy shape), move it under AccountBasedExpenseLineDetail.
+    const reshapedBill = {
+      ...bill,
+      Line: (bill.Line || []).map((line: any) => {
+        if (line.AccountBasedExpenseLineDetail || line.ItemBasedExpenseLineDetail) {
+          return line; // already properly structured
+        }
+        if (line.AccountRef) {
+          const { AccountRef, ...rest } = line;
+          return {
+            ...rest,
+            AccountBasedExpenseLineDetail: { AccountRef },
+          };
+        }
+        return line;
+      }),
+    };
+
     return new Promise((resolve) => {
-      quickbooks.createBill(bill, (err: any, createdBill: any) => {
+      quickbooks.createBill(reshapedBill, (err: any, createdBill: any) => {
         if (err) {
           resolve({
             result: null,
@@ -34,4 +53,4 @@ export async function createQuickbooksBill(bill: any): Promise<ToolResponse<any>
       error: formatError(error),
     };
   }
-} 
+}

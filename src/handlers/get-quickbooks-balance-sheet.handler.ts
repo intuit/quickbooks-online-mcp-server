@@ -1,4 +1,4 @@
-import { quickbooksClient } from "../clients/quickbooks-client.js";
+import { QuickbooksClient } from "../clients/quickbooks-client.js";
 import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
 
@@ -11,18 +11,24 @@ export interface BalanceSheetOptions {
 
 export async function getQuickbooksBalanceSheet(options: BalanceSheetOptions): Promise<ToolResponse<any>> {
   try {
-    await quickbooksClient.authenticate();
-    const quickbooks = quickbooksClient.getQuickbooks();
+    // Use getInstance() so token freshness is checked on every call
+    const quickbooks = await QuickbooksClient.getInstance();
+
+    // Build params — Balance Sheet is a point-in-time report.
+    // end_date is the "as of" date. start_date is not a valid QBO param
+    // for Balance Sheet and is intentionally excluded.
     const params: Record<string, any> = {};
-    if (options.start_date) params.start_date = options.start_date;
     if (options.end_date) params.end_date = options.end_date;
     if (options.accounting_method) params.accounting_method = options.accounting_method;
     if (options.summarize_column_by) params.summarize_column_by = options.summarize_column_by;
 
     return new Promise((resolve) => {
       (quickbooks as any).reportBalanceSheet(params, (err: any, report: any) => {
-        if (err) resolve({ result: null, isError: true, error: formatError(err) });
-        else resolve({ result: report, isError: false, error: null });
+        if (err) {
+          resolve({ result: null, isError: true, error: formatError(err) });
+        } else {
+          resolve({ result: report, isError: false, error: null });
+        }
       });
     });
   } catch (error) {

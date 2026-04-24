@@ -7,3 +7,7 @@ coverage
 .env
 .env.local
 .env.*.local
+
+tokens.json
+
+start.cmd
