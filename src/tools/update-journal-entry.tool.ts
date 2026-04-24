@@ -8,13 +8,41 @@ const toolDescription = "Update a journal entry in QuickBooks Online.";
 
 // Define the expected input schema for updating a journal entry
 const toolSchema = z.object({
-  journalEntry: z.any(),
+  journalEntry: z.object({
+    Id: z.string().describe("The journal entry ID to update"),
+    SyncToken: z.string().describe("Current SyncToken (required for concurrency control)"),
+    sparse: z.boolean().optional().describe("If true, only update provided fields"),
+    TxnDate: z.string().optional().describe("Transaction date in YYYY-MM-DD format"),
+    PrivateNote: z.string().optional().describe("Private memo"),
+    DocNumber: z.string().optional().describe("Journal number"),
+    Line: z.array(z.object({
+      Id: z.string().optional(),
+      Amount: z.number(),
+      DetailType: z.literal("JournalEntryLineDetail"),
+      Description: z.string().optional().describe("Line description (must be at Line level, NOT inside JournalEntryLineDetail)"),
+      JournalEntryLineDetail: z.object({
+        PostingType: z.enum(["Debit", "Credit"]),
+        AccountRef: z.object({
+          value: z.string(),
+          name: z.string().optional(),
+        }),
+        ClassRef: z.object({
+          value: z.string(),
+          name: z.string().optional(),
+        }).optional(),
+        DepartmentRef: z.object({
+          value: z.string(),
+          name: z.string().optional(),
+        }).optional(),
+      }),
+    })).optional(),
+  }),
 });
 
 type ToolParams = z.infer<typeof toolSchema>;
 
 // Define the tool handler
-const toolHandler = async (args: any) => {
+const toolHandler = async (args: { [x: string]: any }) => {
   const response = await updateQuickbooksJournalEntry(args.params.journalEntry);
 
   if (response.isError) {
