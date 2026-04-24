@@ -172,10 +172,38 @@ class QuickbooksClient {
     fs.writeFileSync(tokenPath, envLines.join('\n'));
   }
 
+  private reloadRefreshTokenFromEnv(): void {
+    // Multiple processes (e.g. one MCP host per client) can each hold a
+    // QuickbooksClient and refresh independently. Because QBO rotates the
+    // refresh_token on every refresh, the in-memory copy in process A goes
+    // stale the moment process B refreshes and persists the rotated value.
+    // Re-reading .env right before we attempt a refresh lets process A pick
+    // up the value process B just persisted, instead of failing with 400/401.
+    try {
+      const tokenPath = path.join(__dirname, '..', '..', '.env');
+      const envContent = fs.readFileSync(tokenPath, 'utf-8');
+      for (const rawLine of envContent.split('\n')) {
+        const line = rawLine.trim();
+        if (!line.startsWith('QUICKBOOKS_REFRESH_TOKEN=')) continue;
+        const value = line.slice('QUICKBOOKS_REFRESH_TOKEN='.length).trim();
+        if (value && value !== this.refreshToken) {
+          this.refreshToken = value;
+        }
+        return;
+      }
+    } catch {
+      // Best-effort. If .env can't be read, fall through and try with whatever
+      // is already in memory; refreshUsingToken will surface the error.
+    }
+  }
+
   async refreshAccessToken() {
+    // Pick up any refresh_token rotation persisted by a sibling process.
+    this.reloadRefreshTokenFromEnv();
+
     if (!this.refreshToken) {
       await this.startOAuthFlow();
-      
+
       // Verify we have a refresh token after OAuth flow
       if (!this.refreshToken) {
         throw new Error('Failed to obtain refresh token from OAuth flow');
@@ -185,13 +213,31 @@ class QuickbooksClient {
     try {
       // At this point we know refreshToken is not undefined
       const authResponse = await this.oauthClient.refreshUsingToken(this.refreshToken);
-      
+
       this.accessToken = authResponse.token.access_token;
-      
+
+      // QuickBooks rotates the refresh_token on refresh (approximately every
+      // 24 hours a new value is returned). If the rotated value isn't
+      // captured and persisted, the next refresh will fail with
+      // "Failed to refresh Quickbooks token: Request failed with status code
+      // 400" because the stored refresh_token is now invalid. Capture and
+      // persist whenever QBO returns a new value.
+      const rotatedRefreshToken = (authResponse.token as { refresh_token?: string }).refresh_token;
+      if (rotatedRefreshToken && rotatedRefreshToken !== this.refreshToken) {
+        this.refreshToken = rotatedRefreshToken;
+        try {
+          this.saveTokensToEnv();
+        } catch (persistError: any) {
+          console.error(
+            `[quickbooks-client] failed to persist rotated refresh token: ${persistError?.message ?? persistError}`,
+          );
+        }
+      }
+
       // Calculate expiry time
       const expiresIn = authResponse.token.expires_in || 3600; // Default to 1 hour
       this.accessTokenExpiry = new Date(Date.now() + expiresIn * 1000);
-      
+
       return {
         access_token: this.accessToken,
         expires_in: expiresIn,
