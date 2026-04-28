@@ -10,9 +10,9 @@ import open from 'open';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Resolve .env relative to the installed module (../../.env from dist/clients/).
-// This matters when the MCP server is spawned by a host (e.g. Claude Code,
-// Cursor) whose working directory is not the project root — without this,
-// dotenv silently finds nothing and startup fails.
+// This matters when the MCP server is spawned by a host (e.g. Claude Desktop,
+// Claude Code, Cursor) whose working directory is not the project root —
+// without this, dotenv silently finds nothing and startup fails.
 //
 // Use override: true so that values from .env always win over any empty-string
 // placeholders a host app (e.g. Claude Desktop) may inject via its env config.
