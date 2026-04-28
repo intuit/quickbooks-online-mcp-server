@@ -1,9 +1,10 @@
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { mockQuickbooksClient, mockQuickBooksInstance, resetAllMocks } from '../../mocks/quickbooks.mock';
+﻿import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { mockQuickbooksClient, mockQuickbooksClientClass, mockQuickBooksInstance, resetAllMocks } from '../../mocks/quickbooks.mock';
 
 // ESM-compatible module mocking
 jest.unstable_mockModule('../../../src/clients/quickbooks-client', () => ({
   quickbooksClient: mockQuickbooksClient,
+  QuickbooksClient: mockQuickbooksClientClass,
 }));
 
 // Dynamic imports after mock setup
@@ -35,6 +36,26 @@ describe('Bill Handlers', () => {
       expect(result.result).toEqual(mockBill);
     });
 
+    it('should preserve already-structured line items and pass through bare lines', async () => {
+      const mockBill = { Id: '2', TotalAmt: 200 };
+      mockQuickBooksInstance.createBill.mockImplementation((_payload: any, cb: any) => cb(null, mockBill));
+
+      const result = await createQuickbooksBill({
+        Line: [
+          // already has AccountBasedExpenseLineDetail — must be returned as-is (line 18)
+          { Amount: 100, AccountBasedExpenseLineDetail: { AccountRef: { value: '1' } } },
+          // already has ItemBasedExpenseLineDetail — must be returned as-is (line 18)
+          { Amount: 50, ItemBasedExpenseLineDetail: { ItemRef: { value: '2' } } },
+          // no AccountRef and no detail key — bare pass-through (line 27)
+          { Amount: 0, DetailType: 'SubTotalLineDetail' },
+        ],
+        VendorRef: { value: '56' },
+      });
+
+      expect(result.isError).toBe(false);
+      expect(result.result).toEqual(mockBill);
+    });
+
     it('should handle API errors', async () => {
       mockQuickBooksInstance.createBill.mockImplementation((_payload: any, cb: any) =>
         cb(new Error('SAXParseException: Premature end of file'), null)
@@ -46,7 +67,7 @@ describe('Bill Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await createQuickbooksBill({});
 
@@ -77,7 +98,7 @@ describe('Bill Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await getQuickbooksBill('1');
 
@@ -108,7 +129,7 @@ describe('Bill Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await updateQuickbooksBill({ Id: '1', SyncToken: '0' });
 
@@ -139,7 +160,7 @@ describe('Bill Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await deleteQuickbooksBill({ Id: '1', SyncToken: '0' });
 
@@ -218,7 +239,7 @@ describe('Bill Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await searchQuickbooksBills({});
 
@@ -227,3 +248,5 @@ describe('Bill Handlers', () => {
     });
   });
 });
+
+

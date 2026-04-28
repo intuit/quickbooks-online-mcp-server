@@ -1,9 +1,10 @@
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { mockQuickbooksClient, mockQuickBooksInstance, resetAllMocks } from '../../mocks/quickbooks.mock';
+﻿import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { mockQuickbooksClient, mockQuickbooksClientClass, mockQuickBooksInstance, resetAllMocks } from '../../mocks/quickbooks.mock';
 
 // ESM-compatible module mocking
 jest.unstable_mockModule('../../../src/clients/quickbooks-client', () => ({
   quickbooksClient: mockQuickbooksClient,
+  QuickbooksClient: mockQuickbooksClientClass,
 }));
 
 // Dynamic imports after mock setup
@@ -75,7 +76,7 @@ describe('Tax Entity Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await searchQuickbooksTaxCodes({});
 
@@ -97,7 +98,7 @@ describe('Tax Entity Handlers', () => {
 
   describe('getQuickbooksTaxCode auth tests', () => {
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await getQuickbooksTaxCode('1');
 
@@ -128,7 +129,7 @@ describe('Tax Entity Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await getQuickbooksTaxRate('1');
 
@@ -171,7 +172,7 @@ describe('Tax Entity Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await searchQuickbooksTaxRates({});
 
@@ -213,7 +214,7 @@ describe('Tax Entity Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await getQuickbooksTaxAgency('1');
 
@@ -267,7 +268,7 @@ describe('Tax Entity Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await searchQuickbooksTaxAgencies({});
 
@@ -276,3 +277,5 @@ describe('Tax Entity Handlers', () => {
     });
   });
 });
+
+

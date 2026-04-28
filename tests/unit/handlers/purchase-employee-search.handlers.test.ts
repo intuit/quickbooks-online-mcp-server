@@ -1,16 +1,17 @@
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { mockQuickbooksClient, mockQuickBooksInstance, resetAllMocks } from '../../mocks/quickbooks.mock';
+﻿import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { mockQuickbooksClient, mockQuickbooksClientClass, mockQuickBooksInstance, resetAllMocks } from '../../mocks/quickbooks.mock';
 
 // ESM-compatible module mocking
 jest.unstable_mockModule('../../../src/clients/quickbooks-client', () => ({
   quickbooksClient: mockQuickbooksClient,
+  QuickbooksClient: mockQuickbooksClientClass,
 }));
 
 // Dynamic imports after mock setup
 const { searchQuickbooksPurchases } = await import('../../../src/handlers/search-quickbooks-purchases.handler');
 const { searchQuickbooksEmployees } = await import('../../../src/handlers/search-quickbooks-employees.handler');
 
-describe('search_purchases – Fixes #14', () => {
+describe('search_purchases â€“ Fixes #14', () => {
   beforeEach(() => {
     resetAllMocks();
   });
@@ -51,7 +52,7 @@ describe('search_purchases – Fixes #14', () => {
   });
 
   it('should handle authentication errors', async () => {
-    (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+    (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
     const result = await searchQuickbooksPurchases({});
 
@@ -60,7 +61,7 @@ describe('search_purchases – Fixes #14', () => {
   });
 });
 
-describe('search_employees – Fixes #15', () => {
+describe('search_employees â€“ Fixes #15', () => {
   beforeEach(() => {
     resetAllMocks();
   });
@@ -101,7 +102,7 @@ describe('search_employees – Fixes #15', () => {
   });
 
   it('should handle authentication errors', async () => {
-    (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+    (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
     const result = await searchQuickbooksEmployees({});
 
@@ -109,3 +110,5 @@ describe('search_employees – Fixes #15', () => {
     expect(result.error).toContain('Auth failed');
   });
 });
+
+

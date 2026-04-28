@@ -1,4 +1,4 @@
-import { quickbooksClient } from "../clients/quickbooks-client.js";
+﻿import { QuickbooksClient } from "../clients/quickbooks-client.js";
 import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
 
@@ -10,8 +10,7 @@ export interface SearchBudgetsInput {
 
 export async function searchQuickbooksBudgets(data: SearchBudgetsInput): Promise<ToolResponse<any>> {
   try {
-    await quickbooksClient.authenticate();
-    const quickbooks = quickbooksClient.getQuickbooks();
+    const quickbooks = await QuickbooksClient.getInstance();
     const criteria: Record<string, any> = {};
     if (data.name) criteria.Name = data.name;
     if (data.active !== undefined) criteria.Active = data.active;
@@ -27,3 +26,4 @@ export async function searchQuickbooksBudgets(data: SearchBudgetsInput): Promise
     return { result: null, isError: true, error: formatError(error) };
   }
 }
+

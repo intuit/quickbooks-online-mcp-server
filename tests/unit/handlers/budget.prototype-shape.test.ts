@@ -9,13 +9,20 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import QuickBooks from 'node-quickbooks';
 
-const mockQuickbooksClient = {
-  authenticate: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
-  getQuickbooks: jest.fn<() => QuickBooks>(),
+// Inline mocks for this test — uses a real QuickBooks prototype instance
+// so that prototype-shape drift is caught without network or credentials.
+let mockQbInstance: QuickBooks;
+
+const mockQuickbooksClientClass = {
+  getInstance: jest.fn<() => Promise<QuickBooks>>(),
 };
 
 jest.unstable_mockModule('../../../src/clients/quickbooks-client', () => ({
-  quickbooksClient: mockQuickbooksClient,
+  quickbooksClient: {
+    authenticate: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+    getQuickbooks: jest.fn<() => QuickBooks>(),
+  },
+  QuickbooksClient: mockQuickbooksClientClass,
 }));
 
 const { searchQuickbooksBudgets } = await import('../../../src/handlers/search-quickbooks-budgets.handler');
@@ -23,7 +30,8 @@ const { searchQuickbooksBudgets } = await import('../../../src/handlers/search-q
 describe('search_budgets prototype-shape contract', () => {
   beforeEach(() => {
     jest.restoreAllMocks();
-    mockQuickbooksClient.authenticate.mockResolvedValue(undefined);
+    mockQbInstance = Object.create(QuickBooks.prototype) as QuickBooks;
+    (mockQuickbooksClientClass.getInstance as any).mockResolvedValue(mockQbInstance);
   });
 
   it('node-quickbooks exposes findBudgets on its prototype', () => {
@@ -31,9 +39,6 @@ describe('search_budgets prototype-shape contract', () => {
   });
 
   it('handler invokes a method that exists on the real QuickBooks prototype', async () => {
-    const qb = Object.create(QuickBooks.prototype) as QuickBooks;
-    mockQuickbooksClient.getQuickbooks.mockReturnValue(qb);
-
     const spy = jest
       .spyOn(QuickBooks.prototype as any, 'findBudgets')
       .mockImplementation(function (this: unknown, _criteria: any, cb: any) {

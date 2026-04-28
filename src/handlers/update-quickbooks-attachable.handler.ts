@@ -1,4 +1,4 @@
-import { quickbooksClient } from "../clients/quickbooks-client.js";
+﻿import { QuickbooksClient } from "../clients/quickbooks-client.js";
 import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
 
@@ -12,8 +12,7 @@ export interface UpdateAttachableInput {
 
 export async function updateQuickbooksAttachable(data: UpdateAttachableInput): Promise<ToolResponse<any>> {
   try {
-    await quickbooksClient.authenticate();
-    const quickbooks = quickbooksClient.getQuickbooks();
+    const quickbooks = await QuickbooksClient.getInstance();
     const payload: any = { Id: data.id, SyncToken: data.sync_token, sparse: true };
     if (data.file_name) payload.FileName = data.file_name;
     if (data.note) payload.Note = data.note;
@@ -29,3 +28,4 @@ export async function updateQuickbooksAttachable(data: UpdateAttachableInput): P
     return { result: null, isError: true, error: formatError(error) };
   }
 }
+

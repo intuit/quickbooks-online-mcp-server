@@ -1,4 +1,4 @@
-import { quickbooksClient } from "../clients/quickbooks-client.js";
+﻿import { QuickbooksClient } from "../clients/quickbooks-client.js";
 import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
 
@@ -19,8 +19,7 @@ export interface CreateSalesReceiptInput {
 
 export async function createQuickbooksSalesReceipt(data: CreateSalesReceiptInput): Promise<ToolResponse<any>> {
   try {
-    await quickbooksClient.authenticate();
-    const quickbooks = quickbooksClient.getQuickbooks();
+    const quickbooks = await QuickbooksClient.getInstance();
 
     const salesReceiptPayload: any = {
       CustomerRef: { value: data.customer_ref },
@@ -67,3 +66,4 @@ export async function createQuickbooksSalesReceipt(data: CreateSalesReceiptInput
     return { result: null, isError: true, error: formatError(error) };
   }
 }
+

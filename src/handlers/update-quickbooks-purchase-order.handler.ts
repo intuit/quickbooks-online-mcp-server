@@ -1,4 +1,4 @@
-import { quickbooksClient } from "../clients/quickbooks-client.js";
+﻿import { QuickbooksClient } from "../clients/quickbooks-client.js";
 import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
 
@@ -12,8 +12,7 @@ export interface UpdatePurchaseOrderInput {
 
 export async function updateQuickbooksPurchaseOrder(data: UpdatePurchaseOrderInput): Promise<ToolResponse<any>> {
   try {
-    await quickbooksClient.authenticate();
-    const quickbooks = quickbooksClient.getQuickbooks();
+    const quickbooks = await QuickbooksClient.getInstance();
 
     const payload: any = {
       Id: data.id,
@@ -38,3 +37,4 @@ export async function updateQuickbooksPurchaseOrder(data: UpdatePurchaseOrderInp
     return { result: null, isError: true, error: formatError(error) };
   }
 }
+

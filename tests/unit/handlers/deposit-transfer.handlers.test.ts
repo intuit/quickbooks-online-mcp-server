@@ -1,9 +1,10 @@
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { mockQuickbooksClient, mockQuickBooksInstance, resetAllMocks } from '../../mocks/quickbooks.mock';
+﻿import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { mockQuickbooksClient, mockQuickbooksClientClass, mockQuickBooksInstance, resetAllMocks } from '../../mocks/quickbooks.mock';
 
 // ESM-compatible module mocking
 jest.unstable_mockModule('../../../src/clients/quickbooks-client', () => ({
   quickbooksClient: mockQuickbooksClient,
+  QuickbooksClient: mockQuickbooksClientClass,
 }));
 
 // Dynamic imports after mock setup
@@ -77,7 +78,7 @@ describe('Deposit and Transfer Handlers', () => {
     });
 
     it('should create a deposit - authentication error', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await createQuickbooksDeposit({
         deposit_to_account_ref: 'account-1',
@@ -97,7 +98,7 @@ describe('Deposit and Transfer Handlers', () => {
     });
 
     it('should get a deposit - authentication error', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await getQuickbooksDeposit('1');
 
@@ -136,7 +137,7 @@ describe('Deposit and Transfer Handlers', () => {
     });
 
     it('should update a deposit - authentication error', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await updateQuickbooksDeposit({ id: '1', sync_token: '0' });
 
@@ -163,7 +164,7 @@ describe('Deposit and Transfer Handlers', () => {
     });
 
     it('should delete a deposit - authentication error', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await deleteQuickbooksDeposit({ id: '1', sync_token: '0' });
 
@@ -202,7 +203,7 @@ describe('Deposit and Transfer Handlers', () => {
     });
 
     it('should search deposits - authentication error', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await searchQuickbooksDeposits({});
 
@@ -274,7 +275,7 @@ describe('Deposit and Transfer Handlers', () => {
     });
 
     it('should get a transfer - authentication error', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await getQuickbooksTransfer('1');
 
@@ -319,7 +320,7 @@ describe('Deposit and Transfer Handlers', () => {
     });
 
     it('should update a transfer - authentication error', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await updateQuickbooksTransfer({ id: '1', sync_token: '0' });
 
@@ -346,7 +347,7 @@ describe('Deposit and Transfer Handlers', () => {
     });
 
     it('should delete a transfer - authentication error', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await deleteQuickbooksTransfer({ id: '1', sync_token: '0' });
 
@@ -375,7 +376,7 @@ describe('Deposit and Transfer Handlers', () => {
     });
 
     it('should search transfers - authentication error', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Auth failed'));
+      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await searchQuickbooksTransfers({});
 
@@ -419,7 +420,7 @@ describe('Deposit and Transfer Handlers', () => {
     });
 
     it('should handle authentication errors', async () => {
-      (mockQuickbooksClient.authenticate as any).mockRejectedValue(new Error('Token expired'));
+      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Token expired'));
 
       const result = await createQuickbooksTransfer({
         from_account_ref: 'account-1',
@@ -446,3 +447,5 @@ describe('Deposit and Transfer Handlers', () => {
     });
   });
 });
+
+

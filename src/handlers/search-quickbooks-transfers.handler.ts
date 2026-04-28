@@ -1,4 +1,4 @@
-import { quickbooksClient } from "../clients/quickbooks-client.js";
+﻿import { QuickbooksClient } from "../clients/quickbooks-client.js";
 import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
 
@@ -10,8 +10,7 @@ export interface SearchTransfersInput {
 
 export async function searchQuickbooksTransfers(data: SearchTransfersInput): Promise<ToolResponse<any>> {
   try {
-    await quickbooksClient.authenticate();
-    const quickbooks = quickbooksClient.getQuickbooks();
+    const quickbooks = await QuickbooksClient.getInstance();
     const criteria: Record<string, any> = {};
     if (data.txn_date_from) criteria.TxnDate = { $gte: data.txn_date_from };
     if (data.txn_date_to) criteria.TxnDate = { ...criteria.TxnDate, $lte: data.txn_date_to };
@@ -27,3 +26,4 @@ export async function searchQuickbooksTransfers(data: SearchTransfersInput): Pro
     return { result: null, isError: true, error: formatError(error) };
   }
 }
+
