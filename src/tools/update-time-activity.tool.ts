@@ -11,6 +11,7 @@ const toolSchema = z.object({
   minutes: z.number().optional().describe("Minutes worked"),
   description: z.string().optional().describe("Description"),
   billable_status: z.enum(["Billable", "NotBillable", "HasBeenBilled"]).optional().describe("Billable status"),
+  item_ref: z.string().optional().describe("Service Item ID (ItemRef) — the QBO Item to associate with this time entry"),
 });
 
 const toolHandler = async ({ params }: any) => {

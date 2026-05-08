@@ -16,6 +16,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // (from PR #40)
 dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
 
+// Register once at module level — registering inside startOAuthFlow() would
+// accumulate duplicate handlers on every OAuth call (upstream fix).
+process.on('uncaughtException', (err) => {
+  console.error('[auth-server] uncaughtException:', err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[auth-server] unhandledRejection:', reason);
+});
+
 const client_id = process.env.QUICKBOOKS_CLIENT_ID;
 const client_secret = process.env.QUICKBOOKS_CLIENT_SECRET;
 const refresh_token = process.env.QUICKBOOKS_REFRESH_TOKEN;
@@ -156,14 +165,6 @@ export class QuickbooksClient {
         } catch {
           // Headless environment — user will open the URL manually
         }
-      });
-
-      // Surface async failures instead of silently exiting. (from PR #40)
-      process.on('uncaughtException', (err) => {
-        console.error('[auth-server] uncaughtException:', err);
-      });
-      process.on('unhandledRejection', (reason) => {
-        console.error('[auth-server] unhandledRejection:', reason);
       });
 
       server.on('error', (error) => {

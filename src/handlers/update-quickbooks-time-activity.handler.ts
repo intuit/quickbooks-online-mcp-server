@@ -9,6 +9,7 @@ export interface UpdateTimeActivityInput {
   minutes?: number;
   description?: string;
   billable_status?: "Billable" | "NotBillable" | "HasBeenBilled";
+  item_ref?: string;
 }
 
 export async function updateQuickbooksTimeActivity(data: UpdateTimeActivityInput): Promise<ToolResponse<any>> {
@@ -20,6 +21,7 @@ export async function updateQuickbooksTimeActivity(data: UpdateTimeActivityInput
     if (data.minutes !== undefined) payload.Minutes = data.minutes;
     if (data.description) payload.Description = data.description;
     if (data.billable_status) payload.BillableStatus = data.billable_status;
+    if (data.item_ref) payload.ItemRef = { value: data.item_ref };
 
     return new Promise((resolve) => {
       (quickbooks as any).updateTimeActivity(payload, (err: any, updated: any) => {

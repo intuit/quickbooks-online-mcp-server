@@ -27,7 +27,7 @@ const toolSchema = z.object({
 });
 
 const toolHandler = async (args: { [x: string]: any }) => {
-  const response = await createQuickbooksVendor(args.vendor);
+  const response = await createQuickbooksVendor(args.params.vendor);
 
   if (response.isError) {
     return {

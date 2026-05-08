@@ -7,13 +7,17 @@ const toolDescription = "Update a bill in QuickBooks Online.";
 const toolSchema = z.object({
   bill: z.object({
     Id: z.string(),
+    SyncToken: z.string(),
+    DocNumber: z.string().optional(),
     Line: z.array(z.object({
       Amount: z.number(),
       DetailType: z.string(),
       Description: z.string(),
-      AccountRef: z.object({
-        value: z.string(),
-        name: z.string().optional(),
+      AccountBasedExpenseLineDetail: z.object({
+        AccountRef: z.object({
+          value: z.string(),
+          name: z.string().optional(),
+        }),
       }),
     })),
     VendorRef: z.object({
@@ -27,7 +31,7 @@ const toolSchema = z.object({
 });
 
 const toolHandler = async (args: { [x: string]: any }) => {
-  const response = await updateQuickbooksBill(args.bill);
+  const response = await updateQuickbooksBill(args.params.bill);
 
   if (response.isError) {
     return {
