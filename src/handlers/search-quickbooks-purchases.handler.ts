@@ -23,7 +23,7 @@ export async function searchQuickbooksPurchases(params: any): Promise<ToolRespon
           });
         } else {
           resolve({
-            result: purchases,
+            result: purchases?.QueryResponse?.Purchase || [],
             isError: false,
             error: null,
           });

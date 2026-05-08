@@ -10,6 +10,8 @@ export interface QuickbooksFilter {
 export interface AdvancedQuickbooksSearchOptions {
   /** Array of filter objects that map to QuickBooks query filters */
   filters?: QuickbooksFilter[];
+  /** Alias for filters — accepted by several tool schemas */
+  criteria?: QuickbooksFilter[];
   /** Sort ascending by the provided field */
   asc?: string;
   /** Sort descending by the provided field */
@@ -53,6 +55,7 @@ export function buildQuickbooksSearchCriteria(
   // If the input is a plain object that does NOT look like advanced options, forward as-is
   const possibleAdvancedKeys: (keyof AdvancedQuickbooksSearchOptions)[] = [
     "filters",
+    "criteria",
     "asc",
     "desc",
     "limit",
@@ -75,8 +78,9 @@ export function buildQuickbooksSearchCriteria(
   const options = input as AdvancedQuickbooksSearchOptions;
   const criteriaArr: Array<Record<string, any>> = [];
 
-  // Convert filters
-  options.filters?.forEach((f) => {
+  // Convert filters (accept both "filters" and "criteria" as the key)
+  const filterList = options.filters ?? options.criteria;
+  filterList?.forEach((f) => {
     criteriaArr.push({ field: f.field, value: f.value, operator: f.operator });
   });
 
