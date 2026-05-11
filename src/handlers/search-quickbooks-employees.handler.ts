@@ -23,7 +23,7 @@ export async function searchQuickbooksEmployees(params: any): Promise<ToolRespon
           });
         } else {
           resolve({
-            result: employees,
+            result: employees?.QueryResponse?.Employee || [],
             isError: false,
             error: null,
           });
