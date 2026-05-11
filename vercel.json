@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "dist/http-server.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    { "src": "/(.*)", "dest": "dist/http-server.js" }
+  ],
+  "crons": [
+    {
+      "path": "/cron/keep-alive",
+      "schedule": "0 6 * * 1"
+    }
+  ]
+}

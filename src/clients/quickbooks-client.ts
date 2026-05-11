@@ -72,6 +72,15 @@ class QuickbooksClient {
     });
   }
 
+  reconfigure(refreshToken: string, realmId: string): void {
+    this.refreshToken = refreshToken;
+    this.realmId = realmId;
+    this.accessToken = undefined;
+    this.accessTokenExpiry = undefined;
+    this.quickbooksInstance = undefined;
+    this.refreshInFlight = undefined;
+  }
+
   private async startOAuthFlow(): Promise<void> {
     if (this.isAuthenticating) {
       return;
@@ -216,6 +225,52 @@ class QuickbooksClient {
     } catch (err) {
       try { fs.unlinkSync(tmpPath); } catch { /* best effort */ }
       throw err;
+    }
+
+    this.saveTokensToClientsJson();
+  }
+
+  private saveTokensToClientsJson(): void {
+    const clientName = process.env.QBO_CLIENT_NAME;
+    if (!clientName) return;
+
+    // Local file persistence (launcher mode)
+    const clientsPath = process.env.QBO_CLIENTS_PATH;
+    if (clientsPath) {
+      try {
+        const clients = JSON.parse(fs.readFileSync(clientsPath, 'utf-8'));
+        if (clients[clientName]) {
+          if (this.refreshToken) clients[clientName].refresh_token = this.refreshToken;
+          if (this.realmId) clients[clientName].realm_id = this.realmId;
+          const tmpPath = `${clientsPath}.tmp.${process.pid}`;
+          fs.writeFileSync(tmpPath, JSON.stringify(clients, null, 2) + '\n', { mode: 0o600 });
+          fs.renameSync(tmpPath, clientsPath);
+        }
+      } catch {
+        // best effort
+      }
+    }
+
+    // Supabase persistence (hosted mode)
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
+    if (supabaseUrl && supabaseKey) {
+      const update: Record<string, string> = { updated_at: new Date().toISOString() };
+      if (this.refreshToken) update.refresh_token = this.refreshToken;
+      if (this.realmId) update.realm_id = this.realmId;
+
+      fetch(`${supabaseUrl}/rest/v1/qbo_clients?slug=eq.${clientName}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify(update),
+      }).catch(() => {
+        // best effort
+      });
     }
   }
 

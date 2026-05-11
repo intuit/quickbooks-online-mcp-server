@@ -16,13 +16,18 @@
         "lint:fix": "eslint --fix",
         "lint": "eslint .",
         "auth": "node dist/auth-server.js",
+        "auth:add": "node auth-add.js",
+        "clients": "node launcher.js",
+        "serve": "node dist/http-server.js",
         "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
         "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --watch",
         "test:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage"
     },
     "dependencies": {
         "@modelcontextprotocol/sdk": "^1.6.0",
+        "@supabase/supabase-js": "^2.105.1",
         "dotenv": "^16.4.7",
+        "express": "^5.2.1",
         "intuit-oauth": "^4.0.0",
         "node-quickbooks": "^2.0.43",
         "open": "^9.1.0",
@@ -31,6 +36,7 @@
     "devDependencies": {
         "@eslint/js": "^9.22.0",
         "@jest/globals": "^30.3.0",
+        "@types/express": "^5.0.6",
         "@types/jest": "^30.0.0",
         "@types/node": "^22.13.10",
         "eslint": "^9.22.0",

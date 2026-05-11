@@ -7,3 +7,5 @@ coverage
 .env
 .env.local
 .env.*.local
+clients.json
+.vercel

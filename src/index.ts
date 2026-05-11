@@ -200,6 +200,10 @@ import { GetAgedPayablesTool } from "./tools/get-aged-payables.tool.js";
 import { GetVendorExpensesTool } from "./tools/get-vendor-expenses.tool.js";
 import { GetVendorBalanceTool } from "./tools/get-vendor-balance.tool.js";
 
+// Client management tools
+import { ListClientsTool } from "./tools/list-clients.tool.js";
+import { SwitchClientTool } from "./tools/switch-client.tool.js";
+
 const main = async () => {
   // Create an MCP server
   const server = QuickbooksMCPServer.GetServer();
@@ -423,6 +427,10 @@ const main = async () => {
   RegisterTool(server, GetAgedPayablesTool);
   RegisterTool(server, GetVendorExpensesTool);
   RegisterTool(server, GetVendorBalanceTool);
+
+  // Client management tools
+  RegisterTool(server, ListClientsTool);
+  RegisterTool(server, SwitchClientTool);
 
   // Start receiving messages on stdin and sending messages on stdout
   const transport = new StdioServerTransport();
