@@ -1,9 +1,10 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { mockQuickbooksClient, mockQuickBooksInstance, resetAllMocks } from '../../mocks/quickbooks.mock';
+import { mockQuickbooksClient, mockQuickbooksClientClass, mockQuickBooksInstance, resetAllMocks } from '../../mocks/quickbooks.mock';
 
 // ESM-compatible module mocking
 jest.unstable_mockModule('../../../src/clients/quickbooks-client', () => ({
   quickbooksClient: mockQuickbooksClient,
+  QuickbooksClient: mockQuickbooksClientClass,
 }));
 
 // Dynamic imports after mock setup
@@ -33,6 +34,37 @@ describe('Bill Handlers', () => {
 
       expect(result.isError).toBe(false);
       expect(result.result).toEqual(mockBill);
+    });
+
+    it('should keep lines that already have AccountBasedExpenseLineDetail', async () => {
+      const mockBill = { Id: '2' };
+      let captured: any;
+      mockQuickBooksInstance.createBill.mockImplementation((payload: any, cb: any) => {
+        captured = payload;
+        cb(null, mockBill);
+      });
+
+      const nestedLine = {
+        Amount: 100,
+        AccountBasedExpenseLineDetail: { AccountRef: { value: '9' } },
+      };
+      await createQuickbooksBill({ Line: [nestedLine], VendorRef: { value: '1' } });
+
+      expect(captured.Line[0]).toEqual(nestedLine);
+    });
+
+    it('should pass through lines without AccountRef restructuring', async () => {
+      const mockBill = { Id: '3' };
+      let captured: any;
+      mockQuickBooksInstance.createBill.mockImplementation((payload: any, cb: any) => {
+        captured = payload;
+        cb(null, mockBill);
+      });
+
+      const plainLine = { Amount: 50, DetailType: 'DescriptionOnly' };
+      await createQuickbooksBill({ Line: [plainLine], VendorRef: { value: '1' } });
+
+      expect(captured.Line[0]).toEqual(plainLine);
     });
 
     it('should handle API errors', async () => {

@@ -1,9 +1,10 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { mockQuickbooksClient, mockQuickBooksInstance, resetAllMocks } from '../../mocks/quickbooks.mock';
+import { mockQuickbooksClient, mockQuickbooksClientClass, mockQuickBooksInstance, resetAllMocks } from '../../mocks/quickbooks.mock';
 
 // ESM-compatible module mocking
 jest.unstable_mockModule('../../../src/clients/quickbooks-client', () => ({
   quickbooksClient: mockQuickbooksClient,
+  QuickbooksClient: mockQuickbooksClientClass,
 }));
 
 // Dynamic imports after mock setup
@@ -145,6 +146,18 @@ describe('TimeActivity Handlers', () => {
       });
 
       expect(result.isError).toBe(false);
+    });
+
+    it('should include ItemRef when item_ref is provided', async () => {
+      let captured: any;
+      mockQuickBooksInstance.updateTimeActivity.mockImplementation((payload: any, cb: any) => {
+        captured = payload;
+        cb(null, { Id: '123' });
+      });
+
+      await updateQuickbooksTimeActivity({ id: '123', sync_token: '0', item_ref: '42' });
+
+      expect(captured.ItemRef).toEqual({ value: '42' });
     });
 
     it('should handle API errors', async () => {

@@ -19,6 +19,7 @@ import { UpdateItemTool } from "./tools/update-item.tool.js";
 import { DeleteItemTool } from "./tools/delete-item.tool.js";
 import { GetAccountTool } from "./tools/get-account.tool.js";
 import { DeleteInvoiceTool } from "./tools/delete-invoice.tool.js";
+import { SendInvoiceTool } from "./tools/send-invoice.tool.js";
 // import { ListAccountsTool } from "./tools/list-accounts.tool.js";
 // import { UpdateCustomerTool } from "./tools/update-customer.tool.js";
 import { CreateCustomerTool } from "./tools/create-customer.tool.js";
@@ -236,6 +237,7 @@ const main = async () => {
   // Add tool to update invoice
   RegisterTool(server, UpdateInvoiceTool);
   RegisterTool(server, DeleteInvoiceTool);
+  RegisterTool(server, SendInvoiceTool);
 
   // Chart of accounts tools
   RegisterTool(server, CreateAccountTool);
