@@ -1,4 +1,4 @@
-﻿import { QuickbooksClient } from "../clients/quickbooks-client.js";
+import { QuickbooksClient } from "../clients/quickbooks-client.js";
 import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
 
@@ -10,7 +10,7 @@ export async function deleteQuickbooksCustomer(idOrEntity: any): Promise<ToolRes
   try {
     const quickbooks = await QuickbooksClient.getInstance();
 
-    // nodeâ€‘quickbooks v1.0.32+ exposes deleteCustomer but some older builds don't.
+    // node‑quickbooks v1.0.32+ exposes deleteCustomer but some older builds don't.
     const hasDelete = typeof (quickbooks as any).deleteCustomer === "function";
 
     return new Promise((resolve) => {

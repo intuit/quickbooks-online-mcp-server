@@ -1,4 +1,4 @@
-﻿import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { mockQuickbooksClient, mockQuickbooksClientClass, mockQuickBooksInstance, resetAllMocks } from '../../mocks/quickbooks.mock';
 
 // ESM-compatible module mocking
@@ -11,7 +11,7 @@ jest.unstable_mockModule('../../../src/clients/quickbooks-client', () => ({
 const { searchQuickbooksPurchases } = await import('../../../src/handlers/search-quickbooks-purchases.handler');
 const { searchQuickbooksEmployees } = await import('../../../src/handlers/search-quickbooks-employees.handler');
 
-describe('search_purchases â€“ Fixes #14', () => {
+describe('search_purchases – Fixes #14', () => {
   beforeEach(() => {
     resetAllMocks();
   });
@@ -61,7 +61,7 @@ describe('search_purchases â€“ Fixes #14', () => {
   });
 });
 
-describe('search_employees â€“ Fixes #15', () => {
+describe('search_employees – Fixes #15', () => {
   beforeEach(() => {
     resetAllMocks();
   });

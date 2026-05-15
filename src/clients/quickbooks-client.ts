@@ -67,6 +67,11 @@ export class QuickbooksClient {
   // token simultaneously.
   private refreshInFlight?: Promise<{ access_token: string; expires_in: number }>;
 
+  // Shared in-flight authenticate promise. Guards the cold-start path so two
+  // concurrent first callers cannot both pass the freshness check and both
+  // invoke startOAuthFlow() / rebuild the QuickBooks instance.
+  private authInFlight?: Promise<QuickBooks>;
+
   constructor(config: {
     clientId: string;
     clientSecret: string;
@@ -315,35 +320,47 @@ export class QuickbooksClient {
   }
 
   async authenticate(): Promise<QuickBooks> {
-    if (!this.refreshToken || !this.realmId) {
-      await this.startOAuthFlow();
+    if (this.authInFlight) {
+      return this.authInFlight;
+    }
 
-      // Verify we have both tokens after OAuth flow
-      if (!this.refreshToken || !this.realmId) {
-        throw new Error('Failed to obtain required tokens from OAuth flow');
+    this.authInFlight = (async () => {
+      try {
+        if (!this.refreshToken || !this.realmId) {
+          await this.startOAuthFlow();
+
+          // Verify we have both tokens after OAuth flow
+          if (!this.refreshToken || !this.realmId) {
+            throw new Error('Failed to obtain required tokens from OAuth flow');
+          }
+        }
+
+        // Silently refresh if token is expired or expiring soon
+        if (this.isTokenExpiredOrExpiringSoon()) {
+          await this.refreshAccessToken();
+        }
+
+        // Always rebuild with the current fresh access token
+        this.quickbooksInstance = new QuickBooks(
+          this.clientId,
+          this.clientSecret,
+          this.accessToken!,
+          false, // no token secret for OAuth 2.0
+          this.realmId!,
+          this.environment === 'sandbox',
+          false, // debug?
+          null,  // minor version
+          '2.0', // oauth version
+          this.refreshToken
+        );
+
+        return this.quickbooksInstance;
+      } finally {
+        this.authInFlight = undefined;
       }
-    }
+    })();
 
-    // Silently refresh if token is expired or expiring soon
-    if (this.isTokenExpiredOrExpiringSoon()) {
-      await this.refreshAccessToken();
-    }
-
-    // Always rebuild with the current fresh access token
-    this.quickbooksInstance = new QuickBooks(
-      this.clientId,
-      this.clientSecret,
-      this.accessToken!,
-      false, // no token secret for OAuth 2.0
-      this.realmId!,
-      this.environment === 'sandbox',
-      false, // debug?
-      null,  // minor version
-      '2.0', // oauth version
-      this.refreshToken
-    );
-
-    return this.quickbooksInstance;
+    return this.authInFlight;
   }
 
   // ── Called by every handler on every request ─────────────────────────────
