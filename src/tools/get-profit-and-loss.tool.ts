@@ -8,7 +8,7 @@ const toolSchema = z.object({
   start_date: z.string().optional().describe("Start date (YYYY-MM-DD)"),
   end_date: z.string().optional().describe("End date (YYYY-MM-DD)"),
   accounting_method: z.enum(["Cash", "Accrual"]).optional().describe("Accounting method"),
-  summarize_column_by: z.enum(["Total", "Month", "Week", "Days"]).optional().describe("How to summarize columns"),
+  summarize_column_by: z.enum(["Total", "Month", "Week", "Days", "Classes"]).optional().describe("How to summarize columns"),
   customer: z.string().optional().describe("Filter by customer ID"),
   vendor: z.string().optional().describe("Filter by vendor ID"),
   item: z.string().optional().describe("Filter by item ID"),

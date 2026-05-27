@@ -6,7 +6,7 @@ export interface ProfitAndLossOptions {
   start_date?: string;
   end_date?: string;
   accounting_method?: "Cash" | "Accrual";
-  summarize_column_by?: "Total" | "Month" | "Week" | "Days";
+  summarize_column_by?: "Total" | "Month" | "Week" | "Days" | "Classes";
   customer?: string;
   vendor?: string;
   item?: string;
