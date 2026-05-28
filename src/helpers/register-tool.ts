@@ -18,9 +18,9 @@ export type CrudCategory = typeof CRUD_CATEGORY[keyof typeof CRUD_CATEGORY];
  * Maps each CRUD category to its corresponding environment variable for disabling tools.
  */
 export const DISABLE_ENV = {
-  [CRUD_CATEGORY.WRITE]:  "DISABLE_WRITE",
-  [CRUD_CATEGORY.UPDATE]: "DISABLE_UPDATE",
-  [CRUD_CATEGORY.DELETE]: "DISABLE_DELETE",
+  [CRUD_CATEGORY.WRITE]:  "QUICKBOOKS_DISABLE_WRITE",
+  [CRUD_CATEGORY.UPDATE]: "QUICKBOOKS_DISABLE_UPDATE",
+  [CRUD_CATEGORY.DELETE]: "QUICKBOOKS_DISABLE_DELETE",
 } as const;
 
 /** 
@@ -62,7 +62,7 @@ export function isToolDisabled(toolName: string): boolean {
 /** 
  * Registers a tool with the MCP server if it is not disabled.
  * Tools are categorized by their name prefix (e.g. create_, update_, delete_).
- * The corresponding environment variable (e.g. DISABLE_WRITE) determines if the tool is registered.
+ * The corresponding environment variable (e.g. QUICKBOOKS_DISABLE_WRITE) determines if the tool is registered.
  */
 export function RegisterTool<T extends z.ZodType<any, any>>(
   server: McpServer,

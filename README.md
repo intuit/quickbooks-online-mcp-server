@@ -66,9 +66,9 @@ QUICKBOOKS_REFRESH_TOKEN=your_refresh_token
 QUICKBOOKS_REALM_ID=your_realm_id
 
 # Optional: restrict which tool categories are registered (default: all enabled)
-# DISABLE_WRITE=true    # suppress create_* tools
-# DISABLE_UPDATE=true   # suppress update_* tools
-# DISABLE_DELETE=true   # suppress delete_* tools
+# QUICKBOOKS_DISABLE_WRITE=true    # suppress create_* tools
+# QUICKBOOKS_DISABLE_UPDATE=true   # suppress update_* tools
+# QUICKBOOKS_DISABLE_DELETE=true   # suppress delete_* tools
 ```
 
 `.env` is gitignored so your real credentials stay local.
@@ -89,9 +89,9 @@ Add to your Claude Code MCP configuration:
         "QUICKBOOKS_REFRESH_TOKEN": "your_refresh_token",
         "QUICKBOOKS_REALM_ID": "your_realm_id",
         "QUICKBOOKS_ENVIRONMENT": "sandbox",
-        "DISABLE_WRITE": "false",
-        "DISABLE_UPDATE": "false",
-        "DISABLE_DELETE": "false"
+        "QUICKBOOKS_DISABLE_WRITE": "false",
+        "QUICKBOOKS_DISABLE_UPDATE": "false",
+        "QUICKBOOKS_DISABLE_DELETE": "false"
       }
     }
   }
@@ -477,9 +477,9 @@ All tool names must follow the `{verb}_{entity}` convention using underscores. T
 
 | Prefix | Category | Suppressed by |
 |--------|----------|---------------|
-| `create_` | WRITE | `DISABLE_WRITE=true` |
-| `update_` | UPDATE | `DISABLE_UPDATE=true` |
-| `delete_` | DELETE | `DISABLE_DELETE=true` |
+| `create_` | WRITE | `QUICKBOOKS_DISABLE_WRITE=true` |
+| `update_` | UPDATE | `QUICKBOOKS_DISABLE_UPDATE=true` |
+| `delete_` | DELETE | `QUICKBOOKS_DISABLE_DELETE=true` |
 | `get_`, `search_`, `read_` | READ | never |
 
 New tools that do not follow this convention will not be correctly categorised and may appear or be suppressed unexpectedly.
