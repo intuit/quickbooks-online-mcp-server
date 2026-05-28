@@ -471,6 +471,19 @@ If you encounter connection errors:
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
+### Tool naming convention
+
+All tool names must follow the `{verb}_{entity}` convention using underscores. The verb prefix determines CRUD Restriction Mode behaviour:
+
+| Prefix | Category | Suppressed by |
+|--------|----------|---------------|
+| `create_` | WRITE | `DISABLE_WRITE=true` |
+| `update_` | UPDATE | `DISABLE_UPDATE=true` |
+| `delete_` | DELETE | `DISABLE_DELETE=true` |
+| `get_`, `search_`, `read_` | READ | never |
+
+New tools that do not follow this convention will not be correctly categorised and may appear or be suppressed unexpectedly.
+
 ---
 
 ## License
