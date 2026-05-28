@@ -37,6 +37,27 @@ export const PREFIX_CATEGORY_MAP: Record<string, CrudCategory> = {
   "delete_": CRUD_CATEGORY.DELETE,
   "delete-": CRUD_CATEGORY.DELETE,
 };
+
+/** 
+ * Determines the CRUD category of a tool based on its name prefix.
+ * Defaults to READ if no prefix matches.
+ */
+export function getCrudCategory(toolName: string): CrudCategory {
+  for (const [prefix, category] of Object.entries(PREFIX_CATEGORY_MAP)) {
+    if (toolName.startsWith(prefix)) return category;
+  }
+  return CRUD_CATEGORY.READ;
+}
+
+/** 
+ * Checks if a tool is disabled based on its CRUD category and corresponding environment variable.
+ * READ tools are never disabled.
+ */
+export function isToolDisabled(toolName: string): boolean {
+  const category = getCrudCategory(toolName);
+  if (category === CRUD_CATEGORY.READ) return false;
+  return process.env[DISABLE_ENV[category]] === "true";
+}
 export function RegisterTool<T extends z.ZodType<any, any>>(
   server: McpServer,
   toolDefinition: ToolDefinition<T>
