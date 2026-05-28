@@ -64,6 +64,11 @@ QUICKBOOKS_CLIENT_SECRET=your_client_secret
 QUICKBOOKS_ENVIRONMENT=sandbox
 QUICKBOOKS_REFRESH_TOKEN=your_refresh_token
 QUICKBOOKS_REALM_ID=your_realm_id
+
+# Optional: restrict which tool categories are registered (default: all enabled)
+# DISABLE_WRITE=true    # suppress create_* tools
+# DISABLE_UPDATE=true   # suppress update_* tools
+# DISABLE_DELETE=true   # suppress delete_* tools
 ```
 
 `.env` is gitignored so your real credentials stay local.
@@ -83,12 +88,17 @@ Add to your Claude Code MCP configuration:
         "QUICKBOOKS_CLIENT_SECRET": "your_client_secret",
         "QUICKBOOKS_REFRESH_TOKEN": "your_refresh_token",
         "QUICKBOOKS_REALM_ID": "your_realm_id",
-        "QUICKBOOKS_ENVIRONMENT": "sandbox"
+        "QUICKBOOKS_ENVIRONMENT": "sandbox",
+        "DISABLE_WRITE": "false",
+        "DISABLE_UPDATE": "false",
+        "DISABLE_DELETE": "false"
       }
     }
   }
 }
 ```
+
+Set any of the `DISABLE_*` flags to `"true"` to prevent that category of tools from being registered. Read tools (`get_*`, `search_*`) are always available.
 
 ---
 

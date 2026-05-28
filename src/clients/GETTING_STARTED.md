@@ -10,6 +10,11 @@ npm install
 QUICKBOOKS_CLIENT_ID=your_client_id
 QUICKBOOKS_CLIENT_SECRET=your_client_secret
 QUICKBOOKS_ENVIRONMENT=production # or sandbox
+
+# Optional: restrict which tool categories are registered (default: all enabled)
+# DISABLE_WRITE=true    # suppress create_* tools
+# DISABLE_UPDATE=true   # suppress update_* tools
+# DISABLE_DELETE=true   # suppress delete_* tools
 ```
 
 3. Get your Client ID and Client Secret:
