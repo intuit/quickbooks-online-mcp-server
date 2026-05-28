@@ -58,10 +58,17 @@ export function isToolDisabled(toolName: string): boolean {
   if (category === CRUD_CATEGORY.READ) return false;
   return process.env[DISABLE_ENV[category]] === "true";
 }
+
+/** 
+ * Registers a tool with the MCP server if it is not disabled.
+ * Tools are categorized by their name prefix (e.g. create_, update_, delete_).
+ * The corresponding environment variable (e.g. DISABLE_WRITE) determines if the tool is registered.
+ */
 export function RegisterTool<T extends z.ZodType<any, any>>(
   server: McpServer,
   toolDefinition: ToolDefinition<T>
 ) {
+  if (isToolDisabled(toolDefinition.name)) return;
   server.tool(
     toolDefinition.name,
     toolDefinition.description,
