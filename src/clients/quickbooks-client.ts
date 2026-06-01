@@ -376,6 +376,24 @@ export class QuickbooksClient {
     return quickbooksClient.quickbooksInstance!;
   }
 
+  // Static counterpart to getInstance() — returns raw OAuth credentials for
+  // handlers that need to call QBO endpoints not wrapped by node-quickbooks
+  // (e.g. POST /upload for binary attachments). Ensures token freshness on
+  // every invocation, same as getInstance().
+  static async getAuthCredentials(): Promise<{ accessToken: string; realmId: string; isSandbox: boolean }> {
+    if (quickbooksClient.isTokenExpiredOrExpiringSoon() || !quickbooksClient.accessToken) {
+      await quickbooksClient.authenticate();
+    }
+    if (!quickbooksClient.accessToken || !quickbooksClient.realmId) {
+      throw new Error('Quickbooks not authenticated');
+    }
+    return {
+      accessToken: quickbooksClient.accessToken,
+      realmId: quickbooksClient.realmId,
+      isSandbox: quickbooksClient.environment === 'sandbox',
+    };
+  }
+
   getQuickbooks() {
     if (!this.quickbooksInstance) {
       throw new Error('Quickbooks not authenticated. Call authenticate() first');

@@ -14,8 +14,16 @@ const mockQuickbooksClient = {
   getQuickbooks: jest.fn<() => QuickBooks>(),
 };
 
+// Post-PR #41, handlers import the QuickbooksClient class and call its
+// static getInstance(). Provide a mock for both shapes so this test stays
+// black-box against the handler's auth pattern.
+const mockQuickbooksClientClass = {
+  getInstance: jest.fn<() => Promise<QuickBooks>>(),
+};
+
 jest.unstable_mockModule('../../../src/clients/quickbooks-client', () => ({
   quickbooksClient: mockQuickbooksClient,
+  QuickbooksClient: mockQuickbooksClientClass,
 }));
 
 const { getQuickbooksGeneralLedger } = await import('../../../src/handlers/get-quickbooks-general-ledger.handler');
@@ -33,6 +41,7 @@ describe('get_general_ledger prototype-shape contract', () => {
   it('handler invokes a method that exists on the real QuickBooks prototype', async () => {
     const qb = Object.create(QuickBooks.prototype) as QuickBooks;
     mockQuickbooksClient.getQuickbooks.mockReturnValue(qb);
+    mockQuickbooksClientClass.getInstance.mockResolvedValue(qb);
 
     const spy = jest
       .spyOn(QuickBooks.prototype as any, 'reportGeneralLedgerDetail')
