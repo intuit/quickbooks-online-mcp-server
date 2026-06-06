@@ -12,11 +12,17 @@ const lineItemSchema = z.object({
   description: z.string().optional(),
 });
 
+const linkedTxnSchema = z.object({
+  txn_id: z.string().min(1),
+  txn_type: z.string().min(1),
+});
+
 const toolSchema = z.object({
   customer_ref: z.string().min(1),
   line_items: z.array(lineItemSchema).min(1),
   doc_number: z.string().optional(),
   txn_date: z.string().optional(),
+  linked_txn: z.array(linkedTxnSchema).optional(),
 });
 
 const toolHandler = async ({ params }: any) => {
