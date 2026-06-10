@@ -107,6 +107,18 @@ export class QuickbooksClient {
     this.isAuthenticating = true;
     const port = 8000;
 
+    // The local server below receives the callback, so the authorize/exchange
+    // pair must use the localhost redirect even when QUICKBOOKS_REDIRECT_URI
+    // points elsewhere (e.g. the OAuth playground used for manual token
+    // generation). Intuit rejects the exchange if the redirect_uri does not
+    // match the one used in the authorize request.
+    const flowClient = new OAuthClient({
+      clientId: this.clientId,
+      clientSecret: this.clientSecret,
+      environment: this.environment,
+      redirectUri: `http://localhost:${port}/callback`,
+    });
+
     return new Promise((resolve, reject) => {
       // Create temporary server for OAuth callback
       const server = http.createServer(async (req, res) => {
@@ -122,7 +134,7 @@ export class QuickbooksClient {
 
         {
           try {
-            const response = await this.oauthClient.createToken(req.url);
+            const response = await flowClient.createToken(req.url);
             const tokens = response.token;
 
             // Save tokens
@@ -189,7 +201,7 @@ export class QuickbooksClient {
         console.log(`[auth-server] Listening on ${typeof addr === 'string' ? addr : `${addr?.address}:${addr?.port}`} (family: ${typeof addr === 'object' ? addr?.family : 'n/a'})`);
 
         // Generate authorization URL with proper type assertion
-        const authUri = this.oauthClient.authorizeUri({
+        const authUri = flowClient.authorizeUri({
           scope: [OAuthClient.scopes.Accounting as string],
           state: 'testState'
         }).toString();
@@ -337,7 +349,21 @@ export class QuickbooksClient {
 
         // Silently refresh if token is expired or expiring soon
         if (this.isTokenExpiredOrExpiringSoon()) {
-          await this.refreshAccessToken();
+          try {
+            await this.refreshAccessToken();
+          } catch (error) {
+            // A dead refresh token (rotated by another consumer, past the
+            // 100-day window, or revoked) is recoverable: fall back to the
+            // interactive OAuth flow instead of failing hard.
+            const message = error instanceof Error ? error.message : String(error);
+            console.error(`[qbo-client] Token refresh failed (${message}); falling back to interactive OAuth`);
+            this.refreshToken = undefined;
+            this.accessToken = undefined;
+            this.accessTokenExpiry = undefined;
+            // With no refresh token, refreshAccessToken() starts the OAuth
+            // flow and then exchanges the newly obtained refresh token.
+            await this.refreshAccessToken();
+          }
         }
 
         // Always rebuild with the current fresh access token
