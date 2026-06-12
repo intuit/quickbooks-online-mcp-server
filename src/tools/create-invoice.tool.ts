@@ -12,9 +12,10 @@ const lineItemSchema = z.object({
   description: z.string().optional(),
   tax_code_ref: z
     .string()
+    .min(1)
     .optional()
     .describe(
-      "Tax code applied to this line. For non-US companies, the Id of a TaxCode entity (use search_tax_codes to list them, e.g. a 0% intra-EU code). For US companies, 'TAX' or 'NON'."
+      "Tax code for this line: a TaxCode Id for non-US companies (use search_tax_codes), or 'TAX'/'NON' for US companies"
     ),
 });
 
@@ -26,9 +27,7 @@ const toolSchema = z.object({
   global_tax_calculation: z
     .enum(["TaxExcluded", "TaxInclusive", "NotApplicable"])
     .optional()
-    .describe(
-      "Non-US companies only: whether line amounts are tax-exclusive (TaxExcluded, default) or tax-inclusive (TaxInclusive)."
-    ),
+    .describe("Non-US companies only: whether unit prices exclude or include tax"),
 });
 
 const toolHandler = async ({ params }: any) => {

@@ -31,6 +31,8 @@ describe('SalesReceipt Handlers', () => {
 
       expect(result.isError).toBe(false);
       expect(result.result).toEqual(mockReceipt);
+      const payload = (mockQuickBooksInstance.createSalesReceipt.mock.calls[0] as any)[0];
+      expect(payload).not.toHaveProperty('GlobalTaxCalculation');
     });
 
     it('should pass per-line TaxCodeRef and GlobalTaxCalculation to QuickBooks', async () => {

@@ -10,7 +10,7 @@ const lineItemSchema = z.object({
   qty: z.number().positive().describe("Quantity"),
   unit_price: z.number().nonnegative().describe("Unit price"),
   description: z.string().optional().describe("Line description"),
-  tax_code_ref: z.string().optional().describe("Tax code for this line: a TaxCode Id for non-US companies (use search_tax_codes), or 'TAX'/'NON' for US companies"),
+  tax_code_ref: z.string().min(1).optional().describe("Tax code for this line: a TaxCode Id for non-US companies (use search_tax_codes), or 'TAX'/'NON' for US companies"),
 });
 
 const toolSchema = z.object({

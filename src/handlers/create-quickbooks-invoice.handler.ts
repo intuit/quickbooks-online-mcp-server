@@ -75,8 +75,11 @@ export async function createQuickbooksInvoice(data: CreateInvoiceInput): Promise
       })),
       DocNumber: data.doc_number,
       TxnDate: data.txn_date,
-      GlobalTaxCalculation: data.global_tax_calculation,
     };
+
+    if (data.global_tax_calculation) {
+      invoicePayload.GlobalTaxCalculation = data.global_tax_calculation;
+    }
 
     const normalizedPayload = normalizeInvoiceFields(invoicePayload);
 

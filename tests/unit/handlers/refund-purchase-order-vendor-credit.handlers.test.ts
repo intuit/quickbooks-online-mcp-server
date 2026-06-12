@@ -39,6 +39,8 @@ describe('Refund, PurchaseOrder, VendorCredit Handlers', () => {
       });
 
       expect(result.isError).toBe(false);
+      const payload = (mockQuickBooksInstance.createRefundReceipt.mock.calls[0] as any)[0];
+      expect(payload).not.toHaveProperty('GlobalTaxCalculation');
     });
 
     it('should create a refund receipt with all optional fields', async () => {
