@@ -4,7 +4,8 @@ import { z } from "zod";
 
 // Define the tool metadata
 const toolName = "create_customer";
-const toolDescription = "Create a customer in QuickBooks Online.";
+const toolDescription =
+  "Create a customer in QuickBooks Online. Accepts a raw QBO Customer object (DisplayName required). Tax info for non-US companies: set PrimaryTaxIdentifier to the customer's tax registration number (e.g. EU VAT number / CIF), and optionally Taxable (boolean) and DefaultTaxCodeRef ({ value: <TaxCode Id> }) for their default sales tax code. Responses always return PrimaryTaxIdentifier masked.";
 
 // Define the expected input schema for creating a customer
 const toolSchema = z.object({

@@ -3,7 +3,8 @@ import { ToolDefinition } from "../types/tool-definition.js";
 import { z } from "zod";
 
 const toolName = "update_customer";
-const toolDescription = "Update an existing customer in QuickBooks Online.";
+const toolDescription =
+  "Update an existing customer in QuickBooks Online. The customer object must include Id and SyncToken (add sparse: true for a partial update). Tax info fields work as in create_customer (e.g. PrimaryTaxIdentifier for the tax registration number / EU VAT number / CIF, DefaultTaxCodeRef for the default sales tax code); responses always return PrimaryTaxIdentifier masked.";
 const toolSchema = z.object({ customer: z.any() });
 
 type ToolParams = z.infer<typeof toolSchema>;
