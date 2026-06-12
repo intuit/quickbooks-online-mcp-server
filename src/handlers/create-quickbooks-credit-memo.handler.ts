@@ -9,10 +9,12 @@ export interface CreateCreditMemoInput {
     qty: number;
     unit_price: number;
     description?: string;
+    tax_code_ref?: string; // TaxCode id (non-US) or TAX/NON (US)
   }>;
   txn_date?: string;
   doc_number?: string;
   private_note?: string;
+  global_tax_calculation?: "TaxExcluded" | "TaxInclusive" | "NotApplicable";
 }
 
 export async function createQuickbooksCreditMemo(data: CreateCreditMemoInput): Promise<ToolResponse<any>> {
@@ -31,6 +33,7 @@ export async function createQuickbooksCreditMemo(data: CreateCreditMemoInput): P
           ItemRef: { value: l.item_ref },
           Qty: l.qty,
           UnitPrice: l.unit_price,
+          TaxCodeRef: l.tax_code_ref ? { value: l.tax_code_ref } : undefined,
         },
       })),
     };
@@ -43,6 +46,9 @@ export async function createQuickbooksCreditMemo(data: CreateCreditMemoInput): P
     }
     if (data.private_note) {
       creditMemoPayload.PrivateNote = data.private_note;
+    }
+    if (data.global_tax_calculation) {
+      creditMemoPayload.GlobalTaxCalculation = data.global_tax_calculation;
     }
 
     return new Promise((resolve) => {
