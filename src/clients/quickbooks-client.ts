@@ -14,6 +14,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const client_id = process.env.QUICKBOOKS_CLIENT_ID;
 const client_secret = process.env.QUICKBOOKS_CLIENT_SECRET;
 const refresh_token = process.env.QUICKBOOKS_REFRESH_TOKEN;
+// IMPORTANT: realm_id (QuickBooks Company ID) is global per deployment, not per-request.
+// In streamable-http mode, the Bearer token is per-request, but the realm_id is fixed at startup.
+// This means each server instance is limited to a single QuickBooks realm.
+// For true multi-tenancy (multiple realms), derive realm_id per-request from the Bearer token
+// or implement per-realm isolation with separate server instances. See comments in startHttpTransport().
 const realm_id = process.env.QUICKBOOKS_REALM_ID;
 const environment = process.env.QUICKBOOKS_ENVIRONMENT || 'sandbox';
 const isSandbox = environment === 'sandbox';

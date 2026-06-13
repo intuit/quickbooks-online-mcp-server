@@ -416,66 +416,114 @@ async function startStdioTransport() {
 
 async function startHttpTransport() {
   const port = parseInt(process.env.PORT || "8000", 10);
+  const MAX_BODY_SIZE = 1024 * 1024; // 1 MB
+
+  // IMPORTANT: Deployment constraint — single realm per server instance
+  // The realm_id (QuickBooks Company ID) is loaded from QUICKBOOKS_REALM_ID at startup
+  // and cannot change per-request. Therefore, this server handles a single QuickBooks realm.
+  //
+  // The Bearer token (access token) is per-request, allowing multiple users of the same realm.
+  // For true multi-tenancy (multiple realms), implement one of:
+  //   1. Separate server instances per realm
+  //   2. Per-request realm_id derivation from the Bearer token
+  //   3. Per-realm connection pooling with separate credentials per realm
 
   const httpServer = http.createServer(async (req, res) => {
-    // Extract Bearer token from Authorization header
-    const authHeader = req.headers.authorization || "";
-    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+    try {
+      const url = new URL(req.url || "/", `http://localhost:${port}`);
 
-    // Run MCP handling inside AsyncLocalStorage context so tool handlers
-    // can access the per-request access token
-    authStorage.run({ accessToken: token }, async () => {
-      try {
-        const url = new URL(req.url || "/", `http://localhost:${port}`);
-
-        if (url.pathname === "/health") {
-          res.writeHead(200, { "Content-Type": "text/plain" });
-          res.end("ok");
-          return;
-        }
-
-        if (url.pathname !== "/mcp") {
-          res.writeHead(404);
-          res.end();
-          return;
-        }
-
-        if (req.method === "POST") {
-          // Stateless mode: new server + transport per request
-          const transport = new StreamableHTTPServerTransport({
-            sessionIdGenerator: undefined,
-          });
-          const server = createMcpServer();
-          registerAllTools(server);
-          await server.connect(transport);
-
-          // Parse request body
-          const body = await new Promise<string>((resolve) => {
-            let data = "";
-            req.on("data", (chunk: Buffer) => { data += chunk.toString(); });
-            req.on("end", () => resolve(data));
-          });
-
-          await transport.handleRequest(req, res, JSON.parse(body));
-        } else if (req.method === "GET") {
-          // SSE not supported in stateless mode
-          res.writeHead(405, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ error: "SSE not supported in stateless mode" }));
-        } else if (req.method === "DELETE") {
-          // Session termination — no-op in stateless mode
-          res.writeHead(200);
-          res.end();
-        } else {
-          res.writeHead(405);
-          res.end();
-        }
-      } catch (error) {
-        console.error("Error handling MCP request:", error);
-        if (!res.headersSent) {
-          res.writeHead(500, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ error: "Internal server error" }));
-        }
+      // Health check before auth validation
+      if (url.pathname === "/health") {
+        res.writeHead(200, { "Content-Type": "text/plain" });
+        res.end("ok");
+        return;
       }
+
+      // Validate Origin header (MCP Streamable HTTP spec requirement)
+      const origin = req.headers.origin;
+      if (!origin) {
+        res.writeHead(403, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Origin header required" }));
+        return;
+      }
+
+      // Extract and validate Authorization header (must be present for /mcp)
+      const authHeader = req.headers.authorization || "";
+      if (!authHeader.startsWith("Bearer ")) {
+        res.writeHead(401, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Missing or invalid Authorization header" }));
+        return;
+      }
+      const token = authHeader.slice(7);
+
+      // Run MCP handling inside AsyncLocalStorage context so tool handlers
+      // can access the per-request access token
+      authStorage.run({ accessToken: token }, async () => {
+        try {
+          if (url.pathname !== "/mcp") {
+            res.writeHead(404);
+            res.end();
+            return;
+          }
+
+          if (req.method === "POST") {
+            // Parse request body with size limit
+            const body = await new Promise<string>((resolve, reject) => {
+              let data = "";
+              req.on("data", (chunk: Buffer) => {
+                data += chunk.toString();
+                if (data.length > MAX_BODY_SIZE) {
+                  reject(new Error("Request body exceeds maximum size"));
+                }
+              });
+              req.on("end", () => resolve(data));
+              req.on("error", reject);
+            });
+
+            // Stateless mode: new server + transport per request
+            const transport = new StreamableHTTPServerTransport({
+              sessionIdGenerator: undefined,
+            });
+            const server = createMcpServer();
+            registerAllTools(server);
+            await server.connect(transport);
+
+            await transport.handleRequest(req, res, JSON.parse(body));
+          } else if (req.method === "GET") {
+            // SSE not supported in stateless mode
+            res.writeHead(405, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "SSE not supported in stateless mode" }));
+          } else if (req.method === "DELETE") {
+            // Session termination — no-op in stateless mode
+            res.writeHead(200);
+            res.end();
+          } else {
+            res.writeHead(405);
+            res.end();
+          }
+        } catch (error) {
+          console.error("Error handling MCP request:", error);
+          if (!res.headersSent) {
+            res.writeHead(500, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "Internal server error" }));
+          }
+        }
+      });
+    } catch (error) {
+      console.error("Error in request handler:", error);
+      if (!res.headersSent) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Internal server error" }));
+      }
+    }
+  });
+
+  // Graceful shutdown
+  process.on("SIGTERM", () => {
+    console.log("SIGTERM received, draining connections...");
+    httpServer.close(() => {
+      console.log("Server closed");
+      process.exit(0);
     });
   });
 
