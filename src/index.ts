@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { QuickbooksMCPServer } from "./server/qbo-mcp-server.js";
+import http from "node:http";
 // import { ListInvoicesTool } from "./tools/list-invoices.tool.js";
 // import { CreateCustomerTool } from "./tools/create-customer.tool.js";
 import { CreateInvoiceTool } from "./tools/create-invoice.tool.js";
@@ -200,9 +202,7 @@ import { GetAgedPayablesTool } from "./tools/get-aged-payables.tool.js";
 import { GetVendorExpensesTool } from "./tools/get-vendor-expenses.tool.js";
 import { GetVendorBalanceTool } from "./tools/get-vendor-balance.tool.js";
 
-const main = async () => {
-  // Create an MCP server
-  const server = QuickbooksMCPServer.GetServer();
+function registerAllTools(server: any) {
   // Add tools for customers
   RegisterTool(server, CreateCustomerTool);
   RegisterTool(server, GetCustomerTool);
@@ -423,10 +423,132 @@ const main = async () => {
   RegisterTool(server, GetAgedPayablesTool);
   RegisterTool(server, GetVendorExpensesTool);
   RegisterTool(server, GetVendorBalanceTool);
+}
 
-  // Start receiving messages on stdin and sending messages on stdout
+async function startHttpTransport() {
+  const port = parseInt(process.env.PORT || "8000", 10);
+  const MAX_BODY_SIZE = 1024 * 1024; // 1 MB
+
+  // IMPORTANT: Deployment constraint — single realm per server instance
+  // The realm_id (QuickBooks Company ID) is loaded from QUICKBOOKS_REALM_ID at startup
+  // and cannot change per-request. Therefore, this server handles a single QuickBooks realm.
+  //
+  // The Bearer token (access token) is per-request, allowing multiple users of the same realm.
+  // For true multi-tenancy (multiple realms), implement one of:
+  //   1. Separate server instances per realm
+  //   2. Per-request realm_id derivation from the Bearer token
+  //   3. Per-realm connection pooling with separate credentials per realm
+
+  const httpServer = http.createServer(async (req, res) => {
+    try {
+      const url = new URL(req.url || "/", `http://localhost:${port}`);
+
+      // Health check before auth validation
+      if (url.pathname === "/health") {
+        res.writeHead(200, { "Content-Type": "text/plain" });
+        res.end("ok");
+        return;
+      }
+
+      // Validate Origin header (MCP Streamable HTTP spec requirement)
+      const origin = req.headers.origin;
+      if (!origin) {
+        res.writeHead(403, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Origin header required" }));
+        return;
+      }
+
+      // Extract and validate Authorization header (must be present for /mcp)
+      const authHeader = req.headers.authorization || "";
+      if (!authHeader.startsWith("Bearer ")) {
+        res.writeHead(401, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Missing or invalid Authorization header" }));
+        return;
+      }
+      const token = authHeader.slice(7);
+
+      // Validate URL path
+      if (url.pathname !== "/mcp") {
+        res.writeHead(404);
+        res.end();
+        return;
+      }
+
+      if (req.method === "POST") {
+        // Parse request body with size limit
+        const body = await new Promise<string>((resolve, reject) => {
+          let data = "";
+          req.on("data", (chunk: Buffer) => {
+            data += chunk.toString();
+            if (data.length > MAX_BODY_SIZE) {
+              reject(new Error("Request body exceeds maximum size"));
+            }
+          });
+          req.on("end", () => resolve(data));
+          req.on("error", reject);
+        });
+
+        // Create stateless MCP server for this request
+        const mcpServer = QuickbooksMCPServer.GetServer();
+        registerAllTools(mcpServer);
+
+        // Create transport and handle request with Bearer token available
+        const transport = new StreamableHTTPServerTransport({
+          sessionIdGenerator: undefined,
+        });
+
+        await mcpServer.connect(transport);
+        await transport.handleRequest(req, res, JSON.parse(body));
+      } else if (req.method === "GET") {
+        // SSE not supported in stateless mode
+        res.writeHead(405, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "SSE not supported in stateless mode" }));
+      } else if (req.method === "DELETE") {
+        // Session termination — no-op in stateless mode
+        res.writeHead(200);
+        res.end();
+      } else {
+        res.writeHead(405);
+        res.end();
+      }
+    } catch (error) {
+      console.error("Error handling MCP request:", error);
+      if (!res.headersSent) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Internal server error" }));
+      }
+    }
+  });
+
+  // Graceful shutdown
+  process.on("SIGTERM", () => {
+    console.log("SIGTERM received, draining connections...");
+    httpServer.close(() => {
+      console.log("Server closed");
+      process.exit(0);
+    });
+  });
+
+  httpServer.listen(port, () => {
+    console.log(`QuickBooks MCP server listening on port ${port} (streamable-http)`);
+  });
+}
+
+async function startStdioTransport() {
+  const server = QuickbooksMCPServer.GetServer();
+  registerAllTools(server);
   const transport = new StdioServerTransport();
   await server.connect(transport);
+}
+
+const main = async () => {
+  const transportMode = process.env.MCP_TRANSPORT || "stdio";
+
+  if (transportMode === "streamable-http") {
+    await startHttpTransport();
+  } else {
+    await startStdioTransport();
+  }
 };
 
 main().catch((error) => {
