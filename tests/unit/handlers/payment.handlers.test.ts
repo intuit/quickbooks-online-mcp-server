@@ -70,6 +70,52 @@ describe('Payment Handlers', () => {
       expect(result.isError).toBe(false);
       expect(result.result).toEqual(mockPayment);
     });
+
+    it('should map reference number and multicurrency fields onto the QBO payload', async () => {
+      // Capture the payload the handler builds so we can assert the new
+      // PaymentRefNum / CurrencyRef / ExchangeRate fields are wired through —
+      // these previously had no schema entry and were silently dropped.
+      let capturedPayload: any = null;
+      (mockQuickBooksInstance.createPayment as jest.Mock).mockImplementation(
+        (payload: any, cb: any) => {
+          capturedPayload = payload;
+          cb(null, { Id: '123' });
+        }
+      );
+
+      const result = await createQuickbooksPayment({
+        customer_ref: 'cust-1',
+        total_amt: 100,
+        payment_ref_num: '755182592',
+        currency_ref: 'GBP',
+        exchange_rate: 1.17,
+      });
+
+      expect(result.isError).toBe(false);
+      // PaymentRefNum is a plain string ("Reference no." in the QBO UI).
+      expect(capturedPayload.PaymentRefNum).toBe('755182592');
+      // CurrencyRef must be wrapped in { value } like the other *Ref fields.
+      expect(capturedPayload.CurrencyRef).toEqual({ value: 'GBP' });
+      expect(capturedPayload.ExchangeRate).toBe(1.17);
+    });
+
+    it('should omit reference number and multicurrency fields when not provided', async () => {
+      // Backward compatibility: existing single-currency callers must not get
+      // any of the new keys injected into their payload.
+      let capturedPayload: any = null;
+      (mockQuickBooksInstance.createPayment as jest.Mock).mockImplementation(
+        (payload: any, cb: any) => {
+          capturedPayload = payload;
+          cb(null, { Id: '123' });
+        }
+      );
+
+      await createQuickbooksPayment({ customer_ref: 'cust-1', total_amt: 100 });
+
+      expect(capturedPayload).not.toHaveProperty('PaymentRefNum');
+      expect(capturedPayload).not.toHaveProperty('CurrencyRef');
+      expect(capturedPayload).not.toHaveProperty('ExchangeRate');
+    });
   });
 
   describe('getQuickbooksPayment', () => {
