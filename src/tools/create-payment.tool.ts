@@ -22,6 +22,9 @@ const toolSchema = z.object({
   deposit_to_account_ref: z.string().optional().describe("Account to deposit to"),
   txn_date: z.string().optional().describe("Transaction date (YYYY-MM-DD)"),
   private_note: z.string().optional().describe("Private note"),
+  payment_ref_num: z.string().optional().describe("Reference no. for the payment, e.g. a bank transfer/transaction number (PaymentRefNum)"),
+  currency_ref: z.string().optional().describe("Reference to the currency (e.g. USD, GBP) in which all amounts on the payment are expressed. Required if multicurrency is enabled for the company (CurrencyRef)"),
+  exchange_rate: z.number().positive().optional().describe("The number of home-currency units it takes to equal one unit of the currency specified by currency_ref. Applicable if multicurrency is enabled for the company (ExchangeRate)"),
   line: z.array(lineSchema).optional().describe("Line items linking to invoices"),
 });
 

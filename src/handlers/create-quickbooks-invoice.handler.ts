@@ -9,6 +9,7 @@ export interface CreateInvoiceInput {
     qty: number;
     unit_price: number;
     description?: string;
+    tax_code_ref?: string; // TaxCode id (non-US) or TAX/NON (US)
   }>;
   doc_number?: string;
   txn_date?: string; // YYYY-MM-DD
@@ -16,6 +17,7 @@ export interface CreateInvoiceInput {
     txn_id: string;
     txn_type: string;
   }>;
+  global_tax_calculation?: "TaxExcluded" | "TaxInclusive" | "NotApplicable";
 }
 
 // Primitive field type map (based on Quickbooks Invoice entity reference docs)
@@ -42,9 +44,12 @@ function normalizeInvoiceFields(obj: Record<string, any>): Record<string, any> {
       case "string":
         normalized[key] = String(value);
         break;
+      /* istanbul ignore next — defensive: the payload built by
+         createQuickbooksInvoice only contains string-typed mapped fields */
       case "number":
         normalized[key] = typeof value === "number" ? value : Number(value);
         break;
+      /* istanbul ignore next — defensive: same as above */
       case "boolean":
         normalized[key] = typeof value === "boolean" ? value : value === "true";
         break;
@@ -69,6 +74,7 @@ export async function createQuickbooksInvoice(data: CreateInvoiceInput): Promise
           ItemRef: { value: l.item_ref },
           Qty: l.qty,
           UnitPrice: l.unit_price,
+          TaxCodeRef: l.tax_code_ref ? { value: l.tax_code_ref } : undefined,
         },
       })),
       DocNumber: data.doc_number,
@@ -80,6 +86,10 @@ export async function createQuickbooksInvoice(data: CreateInvoiceInput): Promise
         })),
       }),
     };
+
+    if (data.global_tax_calculation) {
+      invoicePayload.GlobalTaxCalculation = data.global_tax_calculation;
+    }
 
     const normalizedPayload = normalizeInvoiceFields(invoicePayload);
 

@@ -39,6 +39,8 @@ describe('Refund, PurchaseOrder, VendorCredit Handlers', () => {
       });
 
       expect(result.isError).toBe(false);
+      const payload = (mockQuickBooksInstance.createRefundReceipt.mock.calls[0] as any)[0];
+      expect(payload).not.toHaveProperty('GlobalTaxCalculation');
     });
 
     it('should create a refund receipt with all optional fields', async () => {
@@ -55,6 +57,25 @@ describe('Refund, PurchaseOrder, VendorCredit Handlers', () => {
       });
 
       expect(result.isError).toBe(false);
+    });
+
+    it('should pass per-line TaxCodeRef and GlobalTaxCalculation to QuickBooks', async () => {
+      mockQuickBooksInstance.createRefundReceipt.mockImplementation((payload: any, cb: any) => cb(null, { Id: '1' }));
+
+      const result = await createQuickbooksRefundReceipt({
+        customer_ref: 'cust-1',
+        line_items: [
+          { item_ref: 'item-1', qty: 2, unit_price: 50, tax_code_ref: '14' },
+          { item_ref: 'item-2', qty: 1, unit_price: 75 }
+        ],
+        global_tax_calculation: 'TaxExcluded'
+      });
+
+      expect(result.isError).toBe(false);
+      const payload = (mockQuickBooksInstance.createRefundReceipt.mock.calls[0] as any)[0];
+      expect(payload.Line[0].SalesItemLineDetail.TaxCodeRef).toEqual({ value: '14' });
+      expect(payload.Line[1].SalesItemLineDetail.TaxCodeRef).toBeUndefined();
+      expect(payload.GlobalTaxCalculation).toBe('TaxExcluded');
     });
 
     it('should create a refund receipt - authentication error', async () => {

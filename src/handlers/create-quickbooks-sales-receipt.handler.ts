@@ -9,12 +9,14 @@ export interface CreateSalesReceiptInput {
     qty: number;
     unit_price: number;
     description?: string;
+    tax_code_ref?: string; // TaxCode id (non-US) or TAX/NON (US)
   }>;
   payment_method_ref?: string;
   deposit_to_account_ref?: string;
   txn_date?: string;
   doc_number?: string;
   private_note?: string;
+  global_tax_calculation?: "TaxExcluded" | "TaxInclusive" | "NotApplicable";
 }
 
 export async function createQuickbooksSalesReceipt(data: CreateSalesReceiptInput): Promise<ToolResponse<any>> {
@@ -33,6 +35,7 @@ export async function createQuickbooksSalesReceipt(data: CreateSalesReceiptInput
           ItemRef: { value: l.item_ref },
           Qty: l.qty,
           UnitPrice: l.unit_price,
+          TaxCodeRef: l.tax_code_ref ? { value: l.tax_code_ref } : undefined,
         },
       })),
     };
@@ -51,6 +54,9 @@ export async function createQuickbooksSalesReceipt(data: CreateSalesReceiptInput
     }
     if (data.private_note) {
       salesReceiptPayload.PrivateNote = data.private_note;
+    }
+    if (data.global_tax_calculation) {
+      salesReceiptPayload.GlobalTaxCalculation = data.global_tax_calculation;
     }
 
     return new Promise((resolve) => {

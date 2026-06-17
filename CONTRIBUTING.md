@@ -26,7 +26,7 @@ Great to have you here. Whether it's improving documentation, adding a new compo
 #### SLAs
 The team that owns this repo is expected to practice the following:
 
->The pull request review SLA is 7 days
+>The pull request review SLA is 20 days
 - Address any incoming PRs for contributions
 - Prioritize feature requests if handled by the team itself
 - Support the contributor through code guidance and contribution recognition

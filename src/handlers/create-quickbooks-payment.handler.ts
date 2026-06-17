@@ -9,6 +9,9 @@ export interface CreatePaymentInput {
   deposit_to_account_ref?: string;
   txn_date?: string;
   private_note?: string;
+  payment_ref_num?: string;
+  currency_ref?: string;
+  exchange_rate?: number;
   line?: Array<{
     amount: number;
     linked_txn: Array<{
@@ -38,6 +41,15 @@ export async function createQuickbooksPayment(data: CreatePaymentInput): Promise
     }
     if (data.private_note) {
       paymentPayload.PrivateNote = data.private_note;
+    }
+    if (data.payment_ref_num) {
+      paymentPayload.PaymentRefNum = data.payment_ref_num;
+    }
+    if (data.currency_ref) {
+      paymentPayload.CurrencyRef = { value: data.currency_ref };
+    }
+    if (data.exchange_rate !== undefined) {
+      paymentPayload.ExchangeRate = data.exchange_rate;
     }
     if (data.line) {
       paymentPayload.Line = data.line.map((l) => ({

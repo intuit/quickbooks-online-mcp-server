@@ -31,6 +31,27 @@ describe('SalesReceipt Handlers', () => {
 
       expect(result.isError).toBe(false);
       expect(result.result).toEqual(mockReceipt);
+      const payload = (mockQuickBooksInstance.createSalesReceipt.mock.calls[0] as any)[0];
+      expect(payload).not.toHaveProperty('GlobalTaxCalculation');
+    });
+
+    it('should pass per-line TaxCodeRef and GlobalTaxCalculation to QuickBooks', async () => {
+      mockQuickBooksInstance.createSalesReceipt.mockImplementation((payload: any, cb: any) => cb(null, { Id: '123' }));
+
+      const result = await createQuickbooksSalesReceipt({
+        customer_ref: 'cust-1',
+        line_items: [
+          { item_ref: 'item-1', qty: 2, unit_price: 50, tax_code_ref: '14' },
+          { item_ref: 'item-2', qty: 1, unit_price: 75 }
+        ],
+        global_tax_calculation: 'TaxExcluded'
+      });
+
+      expect(result.isError).toBe(false);
+      const payload = (mockQuickBooksInstance.createSalesReceipt.mock.calls[0] as any)[0];
+      expect(payload.Line[0].SalesItemLineDetail.TaxCodeRef).toEqual({ value: '14' });
+      expect(payload.Line[1].SalesItemLineDetail.TaxCodeRef).toBeUndefined();
+      expect(payload.GlobalTaxCalculation).toBe('TaxExcluded');
     });
 
     it('should handle API errors', async () => {
