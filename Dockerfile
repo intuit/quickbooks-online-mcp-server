@@ -16,8 +16,8 @@ COPY package.json package-lock.json ./
 # Copy .npmrc if authentication needed
 # COPY .npmrc .
 
-# Install dependencies
-RUN npm install --prefer-offline --no-audit
+# Install all dependencies (including dev) needed for the build
+RUN npm ci
 
 # Copy source code
 COPY . .
@@ -25,7 +25,7 @@ COPY . .
 # Build TypeScript
 RUN npm run build
 
-# Prune dev dependencies for smaller runtime image
+# Remove dev dependencies, keeping only production deps for the runtime image
 RUN npm prune --omit=dev
 
 # Runtime stage - lightweight image

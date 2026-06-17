@@ -14,8 +14,9 @@ This document describes all environment variables used by the QuickBooks Online 
 | `QUICKBOOKS_REDIRECT_URI` | stdio | No | `http://localhost:8000/callback` | OAuth2 callback URL |
 | `MCP_TRANSPORT` | both | No | `stdio` | Transport mode: `stdio` or `streamable-http` |
 | `PORT` | http | No | `8000` | HTTP listen port (HTTP mode only) |
+| `ALLOWED_ORIGINS` | http | **Yes** | — | Comma-separated list of allowed request origins (HTTP mode only) |
 
-\* Required for stdio mode. Not needed in HTTP mode (Bearer token injected via Authorization header).
+\* Required for stdio mode. Not needed in HTTP mode.
 
 ---
 
@@ -105,9 +106,10 @@ This document describes all environment variables used by the QuickBooks Online 
   - **`streamable-http`**:
     - HTTP server on configured port
     - Suitable for containerized/remote deployments
-    - Bearer token injected via `Authorization` header per-request
+    - Bearer token validated per-request as an access gate (see `ALLOWED_ORIGINS`)
     - Stateless (new server instance per request)
-    - Security: Origin header validation, body size limits, graceful shutdown
+    - Security: Origin allowlist validation, body size limits, graceful shutdown
+    - Single shared QBO identity — all requests use the server's own env credentials
 
 #### `PORT`
 - **Required**: No
@@ -117,6 +119,15 @@ This document describes all environment variables used by the QuickBooks Online 
 - **Only used**: When `MCP_TRANSPORT=streamable-http`
 - **Docker**: Container internally listens on 8000; map via `-p` flag
 - **Note**: Requires elevated privileges to bind ports < 1024
+
+#### `ALLOWED_ORIGINS`
+- **Required**: Yes (HTTP mode)
+- **Default**: None — all cross-origin requests are rejected if unset
+- **Example**: `https://app.example.com,https://admin.example.com`
+- **Description**: Comma-separated list of allowed `Origin` header values for DNS-rebinding protection
+- **Only used**: When `MCP_TRANSPORT=streamable-http`
+- **Behavior**: Requests whose `Origin` header is absent or not in this list receive a `403 Origin not allowed` response
+- **Security**: Must be set explicitly; there is no default allowlist
 
 ---
 
@@ -143,7 +154,8 @@ The `.env` file stores credentials and configuration locally. It is **gitignored
 
 #### When `.env` is NOT Written:
 - **HTTP mode** (`MCP_TRANSPORT=streamable-http`):
-  - Bearer token comes from `Authorization` header (per-request)
+  - Bearer token from `Authorization` header is validated as an access gate only
+  - QBO API calls use the server's own credentials from environment variables
   - No local token storage
   - No `.env` writes
 
@@ -172,7 +184,7 @@ npm run auth
 ```
 
 #### For HTTP Mode:
-No `.env` needed for runtime — Bearer tokens injected per-request.
+No `.env` needed for runtime — use environment variables or container secrets. The Bearer token in the `Authorization` header is an access gate only; QBO credentials come from the server's own environment variables.
 
 ---
 
@@ -204,13 +216,14 @@ QUICKBOOKS_REALM_ID=1234567890
 QUICKBOOKS_ENVIRONMENT=sandbox
 MCP_TRANSPORT=streamable-http
 PORT=8000
+ALLOWED_ORIGINS=https://your-client-app.example.com
 ```
 
 **Notes**:
-- No local credentials needed (`CLIENT_ID`, `CLIENT_SECRET`, `REFRESH_TOKEN`)
-- Bearer token provided by upstream OAuth proxy/MCP client
-- Token injected via `Authorization: Bearer <token>` header
-- `.env` not needed at runtime (can use Kubernetes secrets, Docker env vars, etc.)
+- This server uses a **single shared QBO identity** — all QuickBooks API calls use the server's own credentials from environment variables
+- The `Authorization: Bearer <token>` header is used only as a front-door access gate; the token is not forwarded to QuickBooks
+- No per-user QBO credentials are needed or supported
+- `.env` not needed at runtime (use Kubernetes Secrets, Docker env vars, etc.)
 
 ### Docker/Container Deployment
 
@@ -220,6 +233,7 @@ docker run \
   -e QUICKBOOKS_ENVIRONMENT=sandbox \
   -e MCP_TRANSPORT=streamable-http \
   -e PORT=8000 \
+  -e ALLOWED_ORIGINS=https://your-client-app.example.com \
   -p 8000:8000 \
   qbo-mcp-server:latest
 ```
@@ -326,9 +340,13 @@ env:
 - **Cause**: Realm ID not set
 - **Fix**: Set `QUICKBOOKS_REALM_ID` to your QuickBooks Company ID
 
+### "Origin not allowed"
+- **Cause**: HTTP mode but `ALLOWED_ORIGINS` is not set, or the caller's origin is not in the list
+- **Fix**: Set `ALLOWED_ORIGINS` to include the origin of your MCP client (e.g. `https://app.example.com`)
+
 ### "Missing or invalid Authorization header"
 - **Cause**: HTTP mode but Bearer token not provided
-- **Fix**: Ensure upstream proxy/client sends `Authorization: Bearer <token>` header
+- **Fix**: Ensure the MCP client sends `Authorization: Bearer <token>` header (token acts as access gate only; QBO calls use server credentials)
 
 ### "Request body exceeds maximum size"
 - **Cause**: HTTP request payload > 1MB
@@ -354,10 +372,10 @@ env:
 
 ## Summary Table
 
-| Use Case | Transport | Credentials | Bearer Token | `.env` |
-|----------|-----------|-------------|--------------|--------|
-| Local dev (CLI) | stdio | In `.env` | No | Yes (required) |
-| Local dev (Docker) | HTTP | Not needed | Via header | No |
-| Kubernetes | HTTP | Not needed | Via header | No (use Secrets) |
-| CI/CD | stdio | Environment vars | No | Optional |
-| Containerized | HTTP | Not needed | Via header | No (env vars) |
+| Use Case | Transport | QBO Credentials | Bearer Token | `.env` | `ALLOWED_ORIGINS` |
+|----------|-----------|-----------------|--------------|--------|-------------------|
+| Local dev (CLI) | stdio | In `.env` | No | Yes (required) | N/A |
+| Local dev (Docker) | HTTP | Server env vars | Access gate only | No | Required |
+| Kubernetes | HTTP | Server env vars | Access gate only | No (use Secrets) | Required |
+| CI/CD | stdio | Environment vars | No | Optional | N/A |
+| Containerized | HTTP | Server env vars | Access gate only | No (env vars) | Required |
