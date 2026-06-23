@@ -116,7 +116,7 @@ export class QuickbooksClient {
       clientId: this.clientId,
       clientSecret: this.clientSecret,
       environment: this.environment,
-      redirectUri: `http://localhost:${port}/callback`,
+      redirectUri: this.redirectUri,
     });
 
     return new Promise((resolve, reject) => {
