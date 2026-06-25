@@ -1,16 +1,32 @@
-.qodo
+# Dependencies
+node_modules/
 
-node_modules
-dist
-coverage
+# Build & Coverage
+dist/
+coverage/
 
+# Environment & Sensitive Files
 .env
 .env.local
 .env.*.local
 tokens.json
-
-start.cmd
-
-# Local capture output (may contain real account balances)
 capture-*.txt
 
+# OS & System Files
+.DS_Store
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+*.lnk
+
+# Editor & IDE Metadata
+.vscode/
+.idea/
+.qodo
+*.swp
+*.swo
+*~
+
+# Backups & Scripts
+start.cmd
+*.backup_*
