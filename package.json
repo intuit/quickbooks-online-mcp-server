@@ -15,7 +15,8 @@
         "watch": "tsc --watch",
         "lint:fix": "eslint --fix",
         "lint": "eslint .",
-        "auth": "node dist/auth-server.js",
+        "auth": "npm run build && node dist/auth-server.js",
+        "smoke": "npm run build && node dist/smoke.js",
         "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
         "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --watch",
         "test:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage"

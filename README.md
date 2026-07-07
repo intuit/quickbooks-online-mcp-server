@@ -66,6 +66,7 @@ QUICKBOOKS_CLIENT_SECRET=your_client_secret
 QUICKBOOKS_ENVIRONMENT=sandbox
 QUICKBOOKS_REFRESH_TOKEN=your_refresh_token
 QUICKBOOKS_REALM_ID=your_realm_id
+QUICKBOOKS_REDIRECT_URI=http://localhost:8000/callback
 
 # Optional: restrict which tool categories are registered (default: all enabled)
 # QUICKBOOKS_DISABLE_WRITE=true    # suppress create_* tools
@@ -73,7 +74,7 @@ QUICKBOOKS_REALM_ID=your_realm_id
 # QUICKBOOKS_DISABLE_DELETE=true   # suppress delete_* tools
 ```
 
-`.env` is gitignored so your real credentials stay local.
+`.env` is gitignored so your real credentials stay local. For separate sandbox and real read-only credentials, use `QUICKBOOKS_PROFILE=sandbox` and `QUICKBOOKS_PROFILE=real_readonly` with `.env.sandbox` and `.env.real_readonly`.
 
 ### Claude Code Integration
 
@@ -370,7 +371,19 @@ This server uses OAuth 2.0 to authenticate to a QuickBooks Online company. You'l
 | **Sandbox** | Development, testing, demos | `http://localhost:8000/callback` works | Easy |
 | **Production** | Real company data | Localhost **rejected** — must be a public HTTPS URL | Harder (see below) |
 
-If you only want to read your own company's data, you still need to set up an app — Intuit does not offer per-user API keys. There is no shortcut around the OAuth + app-creation flow.
+If you only want to read your own company's data, you still need to set up an app. Intuit does not offer per-user API keys.
+
+For separate sandbox and real read-only credentials, use profile-specific env
+files instead of overwriting `.env`:
+
+```bash
+QUICKBOOKS_PROFILE=sandbox npm run auth
+QUICKBOOKS_PROFILE=real_readonly npm run auth
+```
+
+Those commands read and update `.env.sandbox` and `.env.real_readonly`
+respectively. You can also set `QUICKBOOKS_ENV_FILE=/path/to/qbo.env` to use an
+explicit file. Profile env files are ignored by git.
 
 ### Sandbox Setup (recommended for first run)
 
@@ -379,7 +392,7 @@ If you only want to read your own company's data, you still need to set up an ap
 3. Get your **Client ID** and **Client Secret** from the app's **Keys & Credentials** page (Development keys)
 4. Create or use a sandbox company under the **Sandbox** top-level menu item in the dev portal
 5. Set `QUICKBOOKS_ENVIRONMENT=sandbox` in your `.env`
-6. Run `npm run auth` to complete the OAuth handshake — your browser will open, you sign in to the sandbox company, tokens are saved to `.env`
+6. Run `npm run auth` to complete the OAuth handshake. If you are using profiles, run `QUICKBOOKS_PROFILE=sandbox npm run auth`. Tokens are saved to the selected env file.
 
 ### Production Setup
 
@@ -403,7 +416,8 @@ QUICKBOOKS_ENVIRONMENT=sandbox  # or 'production'
 ### Common pitfalls
 
 - **`.env` loaded from the wrong directory.** The server resolves `.env` relative to the compiled module, not your shell's CWD. If you launch via Claude Desktop, this matters — make sure you're on current `main`.
-- **Redirect URI mismatch.** The URI you register in the Intuit portal must match **exactly** — protocol, host, port, path. `http://localhost:8000/callback` .
+- **Redirect URI mismatch.** The URI you register in the Intuit portal must match **exactly** — protocol, host, port, path. `http://localhost:8000/callback`.
+- `npm run auth` starts a temporary local callback server, opens the browser when possible, and saves tokens to the selected env file.
 
 ---
 
@@ -493,7 +507,6 @@ New tools that do not follow this convention will not be correctly categorised a
 MIT License - see [LICENSE](LICENSE) for details.
 
 ---
-
 ## Acknowledgments
 
 - Based on [Intuit's QuickBooks Online MCP Server](https://github.com/intuit/quickbooks-online-mcp-server)

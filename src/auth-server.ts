@@ -21,6 +21,9 @@
 import { quickbooksClient } from './clients/quickbooks-client.js';
 
 async function main() {
+  const profile = process.env.QUICKBOOKS_PROFILE;
+  const envFile = process.env.QUICKBOOKS_ENV_FILE || (profile ? `.env.${profile}` : '.env');
+
   console.log('QuickBooks OAuth Authentication');
   console.log('================================\n');
   console.log('Starting OAuth flow...');
@@ -31,15 +34,15 @@ async function main() {
     await quickbooksClient.authenticate();
 
     console.log('\n✓ Successfully authenticated with QuickBooks!');
-    console.log('Tokens have been saved to your .env file.');
+    console.log(`Tokens have been saved to ${envFile}.`);
     console.log('\nYou can now use the MCP server.');
 
     process.exit(0);
   } catch (error) {
     console.error('\n✗ Authentication failed:', error);
     console.error('\nPlease check:');
-    console.error('1. QUICKBOOKS_CLIENT_ID is set correctly in .env');
-    console.error('2. QUICKBOOKS_CLIENT_SECRET is set correctly in .env');
+    console.error(`1. QUICKBOOKS_CLIENT_ID is set correctly in ${envFile}`);
+    console.error(`2. QUICKBOOKS_CLIENT_SECRET is set correctly in ${envFile}`);
     console.error('3. http://localhost:8000/callback is registered as a redirect URI in your Intuit app');
 
     process.exit(1);

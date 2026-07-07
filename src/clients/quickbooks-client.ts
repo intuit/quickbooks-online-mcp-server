@@ -8,17 +8,18 @@ import { fileURLToPath } from 'url';
 import open from 'open';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const projectRoot = path.join(__dirname, '..', '..');
+const qboProfile = process.env.QUICKBOOKS_PROFILE;
+const qboEnvFile =
+  process.env.QUICKBOOKS_ENV_FILE ||
+  (qboProfile ? `.env.${qboProfile}` : '.env');
+const qboEnvPath = path.isAbsolute(qboEnvFile)
+  ? qboEnvFile
+  : path.join(projectRoot, qboEnvFile);
 
-// Resolve .env relative to the installed module (../../.env from dist/clients/).
-// This matters when the MCP server is spawned by a host (e.g. Claude Desktop,
-// Claude Code, Cursor) whose working directory is not the project root —
-// without this, dotenv silently finds nothing and startup fails.
-//
-// Use override: true so that values from .env always win over any empty-string
-// placeholders a host app (e.g. Claude Desktop) may inject via its env config.
-// This prevents the server from starting with blank REFRESH_TOKEN / REALM_ID
-// even when the host config has those keys set to "".
-dotenv.config({ path: path.join(__dirname, '..', '..', '.env'), override: true });
+// Resolve credentials relative to the installed module instead of shell CWD.
+// Use override so host-injected empty strings cannot mask the selected env file.
+dotenv.config({ path: qboEnvPath, override: true });
 
 // Register once at module level — registering inside startOAuthFlow() would
 // accumulate duplicate handlers on every OAuth call.
@@ -34,8 +35,11 @@ const client_secret = process.env.QUICKBOOKS_CLIENT_SECRET;
 const refresh_token = process.env.QUICKBOOKS_REFRESH_TOKEN;
 const realm_id = process.env.QUICKBOOKS_REALM_ID;
 const environment = process.env.QUICKBOOKS_ENVIRONMENT || 'sandbox';
-// Fix for Issue #5: Use env var with underscore (QUICKBOOKS_REDIRECT_URI)
-const redirect_uri = process.env.QUICKBOOKS_REDIRECT_URI || 'http://localhost:8000/callback';
+const redirect_uri =
+  process.env.QUICKBOOKS_REDIRECTURI ||
+  process.env.QUICKBOOKS_REDIRECT_URI ||
+  'http://localhost:8000/callback';
+const minor_version = process.env.QUICKBOOKS_MINOR_VERSION || '75';
 
 // Only throw error if client_id or client_secret is missing
 if (!client_id || !client_secret || !redirect_uri) {
@@ -58,6 +62,8 @@ export class QuickbooksClient {
   private oauthClient: OAuthClient;
   private isAuthenticating: boolean = false;
   private redirectUri: string;
+  private readonly minorVersion: string;
+  private readonly envFilePath: string;
 
   // Refresh 5 minutes before actual expiry to avoid edge cases
   private static readonly TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
@@ -79,6 +85,8 @@ export class QuickbooksClient {
     realmId?: string;
     environment: string;
     redirectUri: string;
+    minorVersion: string;
+    envFilePath: string;
   }) {
     this.clientId = config.clientId;
     this.clientSecret = config.clientSecret;
@@ -86,6 +94,8 @@ export class QuickbooksClient {
     this.realmId = config.realmId;
     this.environment = config.environment;
     this.redirectUri = config.redirectUri;
+    this.minorVersion = config.minorVersion;
+    this.envFilePath = config.envFilePath;
     this.oauthClient = new OAuthClient({
       clientId: this.clientId,
       clientSecret: this.clientSecret,
@@ -229,7 +239,7 @@ export class QuickbooksClient {
   }
 
   private saveTokensToEnv(): void {
-    const tokenPath = path.join(__dirname, '..', '..', '.env');
+    const tokenPath = this.envFilePath;
     const envContent = fs.existsSync(tokenPath) ? fs.readFileSync(tokenPath, 'utf-8') : '';
     const envLines = envContent.split('\n');
 
@@ -375,7 +385,7 @@ export class QuickbooksClient {
           this.realmId!,
           this.environment === 'sandbox',
           false, // debug?
-          null,  // minor version
+          this.minorVersion,
           '2.0', // oauth version
           this.refreshToken
         );
@@ -435,4 +445,6 @@ export const quickbooksClient = new QuickbooksClient({
   realmId: realm_id,
   environment: environment,
   redirectUri: redirect_uri,
+  minorVersion: minor_version,
+  envFilePath: qboEnvPath,
 });
