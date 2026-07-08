@@ -8,25 +8,25 @@
  *    stored refresh token is rejected (e.g. invalid_grant after the token
  *    was rotated by another consumer, expired past the 100-day window, or
  *    was revoked).
- * 2. The interactive flow must authorize AND exchange with the localhost
- *    callback redirect, even when QUICKBOOKS_REDIRECT_URI points elsewhere
- *    (e.g. the OAuth playground). Intuit rejects the code exchange if the
- *    redirect_uri differs from the one used in the authorize request.
+ * 2. The interactive flow must authorize AND exchange with the configured
+ *    callback redirect. Intuit rejects the code exchange if the redirect_uri
+ *    differs from the one used in the authorize request.
  */
 import { jest } from '@jest/globals';
 
 // The module under test validates env at import time. Set deterministic
-// values before importing it. QUICKBOOKS_REDIRECT_URI deliberately points
-// away from localhost to prove the flow ignores it.
+// values before importing it. QUICKBOOKS_REDIRECT_URI deliberately points at
+// a public callback URL to prove the interactive flow uses the configured
+// redirect instead of hard-forcing localhost.
 process.env.QUICKBOOKS_CLIENT_ID = 'test-client-id';
 process.env.QUICKBOOKS_CLIENT_SECRET = 'test-client-secret';
 process.env.QUICKBOOKS_REFRESH_TOKEN = 'stale-refresh-token';
 process.env.QUICKBOOKS_REALM_ID = '12345';
 process.env.QUICKBOOKS_ENVIRONMENT = 'sandbox';
-process.env.QUICKBOOKS_REDIRECT_URI = 'https://developer.intuit.com/v2/OAuth2Playground/RedirectUrl';
+process.env.QUICKBOOKS_REDIRECT_URI = 'https://example.com/callback';
 
 // Track every OAuthClient the module constructs so tests can tell the
-// module-level client (env redirect) apart from the flow client (localhost).
+// module-level client (env redirect) apart from the flow client.
 type MockOAuth = {
   cfg: Record<string, unknown>;
   refreshUsingToken: jest.Mock;
@@ -124,7 +124,7 @@ describe('QuickbooksClient.authenticate', () => {
     expect(callbackHandler).toBeUndefined();
   });
 
-  it('falls back to the interactive OAuth flow when the refresh token is rejected, and uses the localhost redirect', async () => {
+  it('falls back to the interactive OAuth flow when the refresh token is rejected, and uses the configured redirect', async () => {
     // Force the next authenticate() to attempt a refresh.
     (quickbooksClient as unknown as { accessTokenExpiry?: Date }).accessTokenExpiry = new Date(0);
 
@@ -149,11 +149,11 @@ describe('QuickbooksClient.authenticate', () => {
 
     await authPromise;
 
-    // A second OAuthClient was constructed for the flow, with the localhost
-    // redirect (NOT the playground URI from the environment).
+    // A second OAuthClient was constructed for the flow, using the configured
+    // redirect URI so authorize and token exchange match exactly.
     expect(oauthInstances).toHaveLength(2);
     const flowClient = oauthInstances[1];
-    expect(flowClient.cfg.redirectUri).toBe('http://localhost:8000/callback');
+    expect(flowClient.cfg.redirectUri).toBe(process.env.QUICKBOOKS_REDIRECT_URI);
 
     // The code exchange went through the flow client, so authorize and
     // exchange used the same redirect_uri.

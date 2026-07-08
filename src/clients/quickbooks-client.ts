@@ -116,17 +116,22 @@ export class QuickbooksClient {
 
     this.isAuthenticating = true;
     const port = 8000;
+    const callbackPath = (() => {
+      try {
+        return new URL(this.redirectUri).pathname || '/callback';
+      } catch {
+        return '/callback';
+      }
+    })();
 
-    // The local server below receives the callback, so the authorize/exchange
-    // pair must use the localhost redirect even when QUICKBOOKS_REDIRECT_URI
-    // points elsewhere (e.g. the OAuth playground used for manual token
-    // generation). Intuit rejects the exchange if the redirect_uri does not
-    // match the one used in the authorize request.
+    // Intuit requires the authorize and token-exchange redirect_uri values to
+    // match exactly. For production this is typically a public HTTPS URL
+    // forwarded to the local callback server via ngrok or an equivalent tunnel.
     const flowClient = new OAuthClient({
       clientId: this.clientId,
       clientSecret: this.clientSecret,
       environment: this.environment,
-      redirectUri: `http://localhost:${port}/callback`,
+      redirectUri: this.redirectUri,
     });
 
     return new Promise((resolve, reject) => {
@@ -134,11 +139,12 @@ export class QuickbooksClient {
       const server = http.createServer(async (req, res) => {
         console.log(`[auth-server] ${req.method} ${req.url}`);
 
-        // Respond to anything that isn't /callback so diagnostic probes (curl,
-        // ngrok health checks, favicon requests, etc.) don't hang the server.
-        if (!req.url?.startsWith('/callback')) {
+        // Respond to anything that isn't the configured callback path so
+        // diagnostic probes (curl, ngrok health checks, favicon requests, etc.)
+        // don't hang the server.
+        if (!req.url?.startsWith(callbackPath)) {
           res.writeHead(404, { 'Content-Type': 'text/plain' });
-          res.end('Not Found. Waiting for QuickBooks OAuth callback at /callback');
+          res.end(`Not Found. Waiting for QuickBooks OAuth callback at ${callbackPath}`);
           return;
         }
 
@@ -204,9 +210,9 @@ export class QuickbooksClient {
         }
       });
 
-      // Start server — bind to all interfaces (IPv4 + IPv6) so ngrok can reach it
-      // regardless of whether it resolves `localhost` to 127.0.0.1 or ::1
-      server.listen(port, '::', async () => {
+      // Start server on IPv4 so public tunnel services forwarding to
+      // localhost:8000 can reliably reach the callback listener.
+      server.listen(port, '0.0.0.0', async () => {
         const addr = server.address();
         console.log(`[auth-server] Listening on ${typeof addr === 'string' ? addr : `${addr?.address}:${addr?.port}`} (family: ${typeof addr === 'object' ? addr?.family : 'n/a'})`);
 
