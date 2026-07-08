@@ -76,6 +76,33 @@ QUICKBOOKS_REDIRECT_URI=http://localhost:8000/callback
 
 `.env` is gitignored so your real credentials stay local. For separate sandbox and real read-only credentials, use `QUICKBOOKS_PROFILE=sandbox` and `QUICKBOOKS_PROFILE=real_readonly` with `.env.sandbox` and `.env.real_readonly`.
 
+## Doc2DB Boundary And Handoff
+
+This repo owns local QuickBooks OAuth and smoke verification. Its normal
+operator surfaces are:
+
+```bash
+QUICKBOOKS_PROFILE=sandbox npm run auth
+QUICKBOOKS_PROFILE=real_readonly npm run auth
+QUICKBOOKS_PROFILE=sandbox npm run smoke
+QUICKBOOKS_PROFILE=real_readonly npm run smoke
+```
+
+After auth/smoke succeeds, switch to the Doc2DB repo for the financial/QBO
+workflow itself. The normal Doc2DB front door is:
+
+```bash
+python scripts/run_financial_lane.py preflight|run|account ...
+```
+
+This repo does not own:
+
+- workflow-backed financial ingestion
+- reconciliation packet authoring
+- source-of-truth lane decisions
+- books-coverage review
+- tax-pipeline review logic
+
 ### Claude Code Integration
 
 Add to your Claude Code MCP configuration:
@@ -384,6 +411,11 @@ QUICKBOOKS_PROFILE=real_readonly npm run auth
 Those commands read and update `.env.sandbox` and `.env.real_readonly`
 respectively. You can also set `QUICKBOOKS_ENV_FILE=/path/to/qbo.env` to use an
 explicit file. Profile env files are ignored by git.
+
+Once the selected profile is connected and `npm run smoke` passes, move back to
+Doc2DB for document ingestion, read-only reconciliation packets, and account
+lane sweeps. Do not try to treat this repo as the operator surface for those
+downstream steps.
 
 ### Sandbox Setup (recommended for first run)
 
