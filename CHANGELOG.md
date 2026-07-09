@@ -5,6 +5,30 @@ All notable changes to the QuickBooks Online MCP Server are documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`create_attachable` now accepts a `file_path`.** When provided, the server
+  reads the file directly from its own disk, streams the bytes to QBO's
+  `/upload` endpoint, and infers `content_type` from the extension and
+  `file_name` from the basename when those are omitted. This avoids routing
+  large binaries through the model context as `base64_content` (which remains
+  supported and is now mutually exclusive with `file_path`). A leading `~/` in
+  the path is expanded; files are size-checked against QBO's 100 MB cap from
+  filesystem metadata before being read into memory.
+- **`update_attachable` gains `content_type` and a convenience `file_path`.**
+  `file_path` derives `file_name`/`content_type` metadata from the path (no disk
+  read). Note: QBO's Attachable update is metadata-only and cannot replace the
+  stored file bytes — to swap the file, create a new attachable and delete the
+  old one.
+
+### Internal
+
+- Extracted the accepted-MIME set and a new extension→MIME map into
+  `src/helpers/attachable-mime.ts`, shared by the create/update attachable
+  handlers.
+
 ## [0.0.1] - 2024-01-13
 
 ### Summary

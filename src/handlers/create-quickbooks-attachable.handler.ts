@@ -1,39 +1,15 @@
 import https from "https";
+import fs from "fs";
+import os from "os";
+import path from "path";
 import { QuickbooksClient } from "../clients/quickbooks-client.js";
 import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
-
-// QBO Attachable upload — file types accepted by the QBO /upload endpoint.
-// Source: developer.intuit.com Attachable API reference (16 unique MIME types
-// covering 17 documented file extensions; .ai and .eps both map to
-// application/postscript).
-//
-// Two entries deviate from RFC standards but match QBO's documented spec
-// literally — keep them so payloads round-trip without QBO rejecting them:
-//   - image/jpg  (RFC standard is image/jpeg; QBO accepts both)
-//   - image/tif  (RFC standard is image/tiff; QBO accepts both)
-//
-// One entry is corrected from a documentation typo:
-//   - QBO docs list application/vnd/ms-excel for .xls. A forward slash in a
-//     MIME subtype is invalid per RFC 6838. We use the correct form here.
-const ALLOWED_UPLOAD_CONTENT_TYPES = new Set([
-  "application/postscript",          // .ai, .eps
-  "text/csv",                        // .csv
-  "application/msword",              // .doc
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
-  "image/gif",                       // .gif
-  "image/jpeg",                      // .jpeg
-  "image/jpg",                       // .jpg
-  "application/vnd.oasis.opendocument.spreadsheet", // .ods
-  "application/pdf",                 // .pdf
-  "image/png",                       // .png
-  "text/rtf",                        // .rtf
-  "image/tif",                       // .tif
-  "text/plain",                      // .txt
-  "application/vnd.ms-excel",        // .xls
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
-  "text/xml",                        // .xml
-]);
+import {
+  ALLOWED_UPLOAD_CONTENT_TYPES,
+  allowedContentTypesList,
+  inferContentTypeFromExtension,
+} from "../helpers/attachable-mime.js";
 
 // QBO documents a 100 MB per-request cap on /upload. We enforce client-side
 // BEFORE allocating Buffer.from(base64) so an unbounded base64 string cannot
@@ -48,7 +24,8 @@ function approximateDecodedSize(base64: string): number {
 }
 
 export interface CreateAttachableInput {
-  file_name: string;
+  file_name?: string;
+  file_path?: string;
   note?: string;
   category?: string;
   content_type?: string;
@@ -62,6 +39,21 @@ export interface CreateAttachableInput {
 
 function sanitizeFilename(name: string): string {
   return name.replace(/[\r\n"\\]/g, "_");
+}
+
+// Expand a leading "~"/"~/" to the user's home directory, then resolve to an
+// absolute path. The server is a local stdio process launched by a host (Claude
+// Desktop/Code) whose working directory is not guaranteed, so relative paths are
+// resolved against wherever that process was started — callers should prefer
+// absolute paths.
+function resolveUserPath(inputPath: string): string {
+  let expanded = inputPath;
+  if (expanded === "~") {
+    expanded = os.homedir();
+  } else if (expanded.startsWith("~/")) {
+    expanded = path.join(os.homedir(), expanded.slice(2));
+  }
+  return path.resolve(expanded);
 }
 
 // Map a status code to a user-safe error message. The raw QBO response body
@@ -166,11 +158,120 @@ export async function createQuickbooksAttachable(
   data: CreateAttachableInput
 ): Promise<ToolResponse<any>> {
   try {
+    if (data.file_path && data.base64_content) {
+      return {
+        result: null,
+        isError: true,
+        error: "Provide either file_path or base64_content, not both.",
+      };
+    }
+
+    // Resolve the binary source (if any) into a Buffer. Two ways to supply
+    // bytes: file_path (server reads from disk — preferred for anything beyond
+    // a few KB) or base64_content (bytes inlined by the caller). When neither is
+    // given we fall through to the metadata-only path.
+    //
+    // file_name and content_type may be derived from file_path when the caller
+    // omits them, so track resolved values separately from the raw input.
+    let fileBuffer: Buffer | undefined;
+    let resolvedFileName = data.file_name;
+    let resolvedContentType = data.content_type;
+
+    // ── Source A: read the file from disk (file_path) ─────────────────────
+    if (data.file_path) {
+      const resolvedPath = resolveUserPath(data.file_path);
+
+      let stats: fs.Stats;
+      try {
+        stats = await fs.promises.stat(resolvedPath);
+      } catch (err: any) {
+        /* istanbul ignore next — Node fs errors always carry a .code; the
+           .message / "unknown error" fallbacks guard a non-standard throw. */
+        const detail = err?.code ?? err?.message ?? "unknown error";
+        return {
+          result: null,
+          isError: true,
+          error: `Cannot read file at "${resolvedPath}": ${detail}.`,
+        };
+      }
+      if (!stats.isFile()) {
+        return {
+          result: null,
+          isError: true,
+          error: `Path "${resolvedPath}" is not a regular file.`,
+        };
+      }
+      if (stats.size === 0) {
+        return {
+          result: null,
+          isError: true,
+          error: `File "${resolvedPath}" is empty (0 bytes).`,
+        };
+      }
+      // Enforce the size cap from the filesystem metadata, BEFORE reading the
+      // whole file into memory.
+      if (stats.size > MAX_UPLOAD_BYTES) {
+        return {
+          result: null,
+          isError: true,
+          error: `File too large: ${stats.size} bytes exceeds QBO's ${MAX_UPLOAD_BYTES} byte (100 MB) upload limit.`,
+        };
+      }
+
+      resolvedFileName = resolvedFileName ?? path.basename(resolvedPath);
+      if (!resolvedContentType) {
+        resolvedContentType = inferContentTypeFromExtension(resolvedPath);
+        if (!resolvedContentType) {
+          return {
+            result: null,
+            isError: true,
+            error: `Could not infer content_type from extension "${path.extname(resolvedPath) || "(none)"}" of "${resolvedPath}". Pass content_type explicitly. Allowed: ${allowedContentTypesList()}`,
+          };
+        }
+      }
+
+      fileBuffer = await fs.promises.readFile(resolvedPath);
+    } else if (data.base64_content) {
+      // ── Source B: bytes inlined as base64 ───────────────────────────────
+      // Enforce size cap BEFORE decoding to a Buffer.
+      const approxSize = approximateDecodedSize(data.base64_content);
+      if (approxSize > MAX_UPLOAD_BYTES) {
+        return {
+          result: null,
+          isError: true,
+          error: `File too large: approximately ${approxSize} bytes exceeds QBO's ${MAX_UPLOAD_BYTES} byte (100 MB) upload limit.`,
+        };
+      }
+
+      fileBuffer = Buffer.from(data.base64_content, "base64");
+
+      /* istanbul ignore next — defensive: the approxSize check above already
+         rejects oversized input; this guards only the malformed-base64 edge
+         case where decoded length unexpectedly exceeds the approximation. */
+      if (fileBuffer.length > MAX_UPLOAD_BYTES) {
+        return {
+          result: null,
+          isError: true,
+          error: `File too large: ${fileBuffer.length} bytes exceeds QBO's ${MAX_UPLOAD_BYTES} byte (100 MB) upload limit.`,
+        };
+      }
+    }
+
+    // QBO requires a FileName on every Attachable. It's optional in the input
+    // only because file_path can supply it.
+    if (!resolvedFileName) {
+      return {
+        result: null,
+        isError: true,
+        error: "file_name is required (or provide file_path to derive it from the file's basename).",
+      };
+    }
+
     // Build payload — same shape whether or not we're uploading binary content.
-    const payload: Record<string, unknown> = { FileName: data.file_name };
+    const payload: Record<string, unknown> = { FileName: resolvedFileName };
     if (data.note) payload.Note = data.note;
     if (data.category) payload.Category = data.category;
-    if (data.content_type) payload.ContentType = data.content_type;
+    if (resolvedContentType) payload.ContentType = resolvedContentType;
     if (data.attachable_ref) {
       const entityRef: Record<string, unknown> = {
         EntityRef: {
@@ -184,37 +285,14 @@ export async function createQuickbooksAttachable(
       payload.AttachableRef = [entityRef];
     }
 
-    // ── Binary upload path ────────────────────────────────────────────────
-    if (data.base64_content) {
-      const effectiveContentType = data.content_type ?? "application/octet-stream";
+    // ── Binary upload path (file_path or base64_content) ──────────────────
+    if (fileBuffer) {
+      const effectiveContentType = resolvedContentType ?? "application/octet-stream";
       if (!ALLOWED_UPLOAD_CONTENT_TYPES.has(effectiveContentType)) {
         return {
           result: null,
           isError: true,
-          error: `Unsupported content_type "${effectiveContentType}". Allowed: ${[...ALLOWED_UPLOAD_CONTENT_TYPES].sort().join(", ")}`,
-        };
-      }
-
-      // Enforce size cap BEFORE decoding to a Buffer.
-      const approxSize = approximateDecodedSize(data.base64_content);
-      if (approxSize > MAX_UPLOAD_BYTES) {
-        return {
-          result: null,
-          isError: true,
-          error: `File too large: approximately ${approxSize} bytes exceeds QBO's ${MAX_UPLOAD_BYTES} byte (100 MB) upload limit.`,
-        };
-      }
-
-      const fileBuffer = Buffer.from(data.base64_content, "base64");
-
-      /* istanbul ignore next — defensive: the approxSize check above already
-         rejects oversized input; this guards only the malformed-base64 edge
-         case where decoded length unexpectedly exceeds the approximation. */
-      if (fileBuffer.length > MAX_UPLOAD_BYTES) {
-        return {
-          result: null,
-          isError: true,
-          error: `File too large: ${fileBuffer.length} bytes exceeds QBO's ${MAX_UPLOAD_BYTES} byte (100 MB) upload limit.`,
+          error: `Unsupported content_type "${effectiveContentType}". Allowed: ${allowedContentTypesList()}`,
         };
       }
 

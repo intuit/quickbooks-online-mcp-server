@@ -1,4 +1,7 @@
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach, beforeAll, afterAll } from '@jest/globals';
+import { mkdtempSync, mkdirSync, writeFileSync, truncateSync, rmSync } from 'fs';
+import { tmpdir, homedir } from 'os';
+import { join } from 'path';
 import { mockQuickbooksClient, mockQuickbooksClientClass, mockQuickBooksInstance, resetAllMocks } from '../../mocks/quickbooks.mock';
 
 // ESM-compatible module mocking
@@ -42,6 +45,33 @@ function mockHttpsUploadNetworkError(err: Error) {
     }),
   };
   (mockHttpsRequest as any).mockImplementation((_options: unknown, _callback: unknown) => mockReq);
+}
+
+// Like mockHttpsUploadResponse but also captures the multipart body written to
+// the request, so tests can assert the FileName/ContentType the handler derived.
+function mockHttpsUploadResponseCapturing(statusCode: number, responseBody: unknown) {
+  const chunks: Buffer[] = [];
+  const mockReq = {
+    write: jest.fn((chunk: Buffer) => { chunks.push(Buffer.from(chunk)); }),
+    end: jest.fn(),
+    on: jest.fn(),
+  };
+  (mockHttpsRequest as any).mockImplementation((_options: unknown, callback: (res: unknown) => void) => {
+    const mockRes = {
+      statusCode,
+      on: jest.fn((event: string, handler: (...args: unknown[]) => void) => {
+        if (event === 'data') {
+          const payload = typeof responseBody === 'string' ? responseBody : JSON.stringify(responseBody);
+          handler(Buffer.from(payload));
+        } else if (event === 'end') {
+          handler();
+        }
+      }),
+    };
+    callback(mockRes);
+    return mockReq;
+  });
+  return () => Buffer.concat(chunks).toString('utf-8');
 }
 
 // Dynamic imports after mock setup
@@ -474,6 +504,190 @@ describe('Company and Attachable Handlers', () => {
       expect(result.isError).toBe(false);
       expect(mockHttpsRequest).not.toHaveBeenCalled();
     });
+
+    it('should reject when neither file_name nor file_path is provided', async () => {
+      const result = await createQuickbooksAttachable({});
+
+      expect(result.isError).toBe(true);
+      expect(result.error).toContain('file_name is required');
+      expect(mockQuickBooksInstance.createAttachable).not.toHaveBeenCalled();
+      expect(mockHttpsRequest).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('createQuickbooksAttachable — file_path upload', () => {
+    let tmpDir: string;
+
+    beforeAll(() => {
+      tmpDir = mkdtempSync(join(tmpdir(), 'qbo-attachable-test-'));
+    });
+
+    afterAll(() => {
+      rmSync(tmpDir, { recursive: true, force: true });
+    });
+
+    it('should read a file from disk and upload it, deriving file_name and content_type', async () => {
+      const filePath = join(tmpDir, '2026-05-13_Adobe_3456406703.pdf');
+      writeFileSync(filePath, Buffer.from('%PDF-1.4 fake pdf bytes'));
+      const getBody = mockHttpsUploadResponseCapturing(200, {
+        AttachableResponse: [{ Attachable: { Id: '99', FileName: '2026-05-13_Adobe_3456406703.pdf' }, responseStatus: '200' }],
+      });
+
+      const result = await createQuickbooksAttachable({
+        file_path: filePath,
+        attachable_ref: { entity_ref_type: 'Purchase', entity_ref_value: '184' },
+      });
+
+      expect(result.isError).toBe(false);
+      expect(mockHttpsRequest).toHaveBeenCalledTimes(1);
+      const [[reqOptions]] = (mockHttpsRequest as jest.Mock).mock.calls as any[][];
+      expect(reqOptions.method).toBe('POST');
+      expect(reqOptions.path).toBe('/v3/company/mock-realm-id/upload');
+
+      // The multipart body carries the derived filename + content type.
+      const body = getBody();
+      expect(body).toContain('"FileName":"2026-05-13_Adobe_3456406703.pdf"');
+      expect(body).toContain('"ContentType":"application/pdf"');
+      expect(body).toContain('filename="2026-05-13_Adobe_3456406703.pdf"');
+      expect(body).toContain('Content-Type: application/pdf');
+      // Bytes read from disk are present in the multipart body.
+      expect(body).toContain('%PDF-1.4 fake pdf bytes');
+    });
+
+    it('should honor explicit file_name and content_type over path-derived values', async () => {
+      const filePath = join(tmpDir, 'raw.bin');
+      writeFileSync(filePath, Buffer.from('bytes'));
+      const getBody = mockHttpsUploadResponseCapturing(200, { AttachableResponse: [] });
+
+      const result = await createQuickbooksAttachable({
+        file_path: filePath,
+        file_name: 'invoice.pdf',
+        content_type: 'application/pdf',
+      });
+
+      expect(result.isError).toBe(false);
+      const body = getBody();
+      expect(body).toContain('"FileName":"invoice.pdf"');
+      expect(body).toContain('"ContentType":"application/pdf"');
+    });
+
+    it('should reject when file_path and base64_content are both provided', async () => {
+      const result = await createQuickbooksAttachable({
+        file_path: join(tmpDir, 'whatever.pdf'),
+        base64_content: Buffer.from('x').toString('base64'),
+        content_type: 'application/pdf',
+      });
+
+      expect(result.isError).toBe(true);
+      expect(result.error).toContain('not both');
+      expect(mockHttpsRequest).not.toHaveBeenCalled();
+    });
+
+    it('should error when the file does not exist', async () => {
+      const result = await createQuickbooksAttachable({
+        file_path: join(tmpDir, 'does-not-exist.pdf'),
+      });
+
+      expect(result.isError).toBe(true);
+      expect(result.error).toContain('Cannot read file');
+      expect(mockHttpsRequest).not.toHaveBeenCalled();
+    });
+
+    it('should error when the path is a directory, not a file', async () => {
+      const subDir = join(tmpDir, 'a-directory.pdf');
+      mkdirSync(subDir);
+
+      const result = await createQuickbooksAttachable({ file_path: subDir });
+
+      expect(result.isError).toBe(true);
+      expect(result.error).toContain('not a regular file');
+      expect(mockHttpsRequest).not.toHaveBeenCalled();
+    });
+
+    it('should error on an empty (0-byte) file', async () => {
+      const filePath = join(tmpDir, 'empty.pdf');
+      writeFileSync(filePath, Buffer.alloc(0));
+
+      const result = await createQuickbooksAttachable({ file_path: filePath });
+
+      expect(result.isError).toBe(true);
+      expect(result.error).toContain('empty');
+      expect(mockHttpsRequest).not.toHaveBeenCalled();
+    });
+
+    it('should reject a file larger than the 100 MB cap before reading it', async () => {
+      // Sparse file: truncate reports the large size via stat without writing
+      // 100 MB of real bytes to disk.
+      const filePath = join(tmpDir, 'huge.pdf');
+      writeFileSync(filePath, Buffer.from('seed'));
+      truncateSync(filePath, 100 * 1024 * 1024 + 1);
+
+      const result = await createQuickbooksAttachable({ file_path: filePath });
+
+      expect(result.isError).toBe(true);
+      expect(result.error).toContain('File too large');
+      expect(mockHttpsRequest).not.toHaveBeenCalled();
+    });
+
+    it('should error when content_type cannot be inferred from an unknown extension', async () => {
+      const filePath = join(tmpDir, 'mystery.zzz');
+      writeFileSync(filePath, Buffer.from('data'));
+
+      const result = await createQuickbooksAttachable({ file_path: filePath });
+
+      expect(result.isError).toBe(true);
+      expect(result.error).toContain('Could not infer content_type');
+      expect(result.error).toContain('.zzz');
+      expect(mockHttpsRequest).not.toHaveBeenCalled();
+    });
+
+    it('should error when the file has no extension and no content_type', async () => {
+      const filePath = join(tmpDir, 'README');
+      writeFileSync(filePath, Buffer.from('data'));
+
+      const result = await createQuickbooksAttachable({ file_path: filePath });
+
+      expect(result.isError).toBe(true);
+      expect(result.error).toContain('Could not infer content_type');
+      expect(result.error).toContain('(none)');
+      expect(mockHttpsRequest).not.toHaveBeenCalled();
+    });
+
+    it('should reject an explicit content_type that QBO does not accept', async () => {
+      const filePath = join(tmpDir, 'sketch.pdf');
+      writeFileSync(filePath, Buffer.from('data'));
+
+      const result = await createQuickbooksAttachable({
+        file_path: filePath,
+        content_type: 'image/vnd.adobe.photoshop',
+      });
+
+      expect(result.isError).toBe(true);
+      expect(result.error).toContain('Unsupported content_type');
+      expect(mockHttpsRequest).not.toHaveBeenCalled();
+    });
+
+    it('should expand a leading ~/ in file_path', async () => {
+      // Point at a path under the home dir that almost certainly does not
+      // exist; the error message proves the ~ was expanded to the home dir.
+      const result = await createQuickbooksAttachable({
+        file_path: '~/qbo-mcp-nonexistent-xyzzy.pdf',
+      });
+
+      expect(result.isError).toBe(true);
+      expect(result.error).toContain('Cannot read file');
+      expect(result.error).toContain(homedir());
+      expect(result.error).not.toContain('~');
+    });
+
+    it('should expand a bare ~ in file_path to the home directory', async () => {
+      // "~" resolves to the home directory, which is a directory, not a file.
+      const result = await createQuickbooksAttachable({ file_path: '~' });
+
+      expect(result.isError).toBe(true);
+      expect(result.error).toContain('not a regular file');
+      expect(result.error).toContain(homedir());
+    });
   });
 
   describe('getQuickbooksAttachable', () => {
@@ -519,6 +733,62 @@ describe('Company and Attachable Handlers', () => {
       });
 
       expect(result.isError).toBe(false);
+    });
+
+    it('should derive file_name and content_type from file_path', async () => {
+      let capturedPayload: any = null;
+      mockQuickBooksInstance.updateAttachable.mockImplementation((payload: any, cb: any) => {
+        capturedPayload = payload;
+        cb(null, {});
+      });
+
+      const result = await updateQuickbooksAttachable({
+        id: '1',
+        sync_token: '0',
+        file_path: '/some/dir/2026-05-13_Adobe_3456406703.pdf',
+      });
+
+      expect(result.isError).toBe(false);
+      expect(capturedPayload.FileName).toBe('2026-05-13_Adobe_3456406703.pdf');
+      expect(capturedPayload.ContentType).toBe('application/pdf');
+    });
+
+    it('should let explicit file_name and content_type override file_path', async () => {
+      let capturedPayload: any = null;
+      mockQuickBooksInstance.updateAttachable.mockImplementation((payload: any, cb: any) => {
+        capturedPayload = payload;
+        cb(null, {});
+      });
+
+      const result = await updateQuickbooksAttachable({
+        id: '1',
+        sync_token: '0',
+        file_path: '/some/dir/derived.pdf',
+        file_name: 'explicit.pdf',
+        content_type: 'text/csv',
+      });
+
+      expect(result.isError).toBe(false);
+      expect(capturedPayload.FileName).toBe('explicit.pdf');
+      expect(capturedPayload.ContentType).toBe('text/csv');
+    });
+
+    it('should omit ContentType when file_path has an unrecognized extension', async () => {
+      let capturedPayload: any = null;
+      mockQuickBooksInstance.updateAttachable.mockImplementation((payload: any, cb: any) => {
+        capturedPayload = payload;
+        cb(null, {});
+      });
+
+      const result = await updateQuickbooksAttachable({
+        id: '1',
+        sync_token: '0',
+        file_path: '/some/dir/archive.zzz',
+      });
+
+      expect(result.isError).toBe(false);
+      expect(capturedPayload.FileName).toBe('archive.zzz');
+      expect(capturedPayload.ContentType).toBeUndefined();
     });
 
     it('should handle API errors', async () => {

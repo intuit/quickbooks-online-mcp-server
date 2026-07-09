@@ -3,13 +3,21 @@ import { ToolDefinition } from "../types/tool-definition.js";
 import { z } from "zod";
 
 const toolName = "update_attachable";
-const toolDescription = "Update an existing attachable in QuickBooks Online.";
+const toolDescription =
+  "Update an existing attachable's metadata (file name, note, category, content type) in QuickBooks Online. This is metadata-only: it CANNOT replace the uploaded file bytes. To attach a different or corrected file, create a new attachable (create_attachable with file_path) and delete the old one.";
 const toolSchema = z.object({
   id: z.string().min(1).describe("Attachable ID"),
   sync_token: z.string().min(1).describe("Sync token for concurrency"),
   file_name: z.string().optional().describe("Updated file name"),
+  content_type: z.string().optional().describe("Updated MIME content type metadata."),
   note: z.string().optional().describe("Updated note"),
   category: z.string().optional().describe("Updated category"),
+  file_path: z
+    .string()
+    .optional()
+    .describe(
+      "Convenience: derive file_name (basename) and content_type (from the extension) from this path for the metadata update. Does NOT read the file or replace the stored bytes — QBO's update endpoint is metadata-only. Explicit file_name/content_type take precedence."
+    ),
 });
 
 const toolHandler = async ({ params }: any) => {
