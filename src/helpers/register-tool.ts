@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ToolDefinition } from "../types/tool-definition.js";
 import { z } from "zod";
+import { injectQboLinkIntoContent } from "./qbo-entity-link.js";
 
 /**
  * Defines CRUD categories for tools
@@ -69,10 +70,41 @@ export function RegisterTool<T extends z.ZodType<any, any>>(
   toolDefinition: ToolDefinition<T>
 ) {
   if (isToolDisabled(toolDefinition.name)) return;
-  server.tool(
-    toolDefinition.name,
-    toolDefinition.description,
-    { params: toolDefinition.schema },
-    toolDefinition.handler
-  );
+
+  // For create_/update_ tools, append a qbo_link deep link (prefixed with the
+  // company name — txnId resolves against the browser's ACTIVE company, so the
+  // user must be able to confirm the header) to the JSON response. Centralized
+  // here so every transaction tool gets it uniformly. Failures never break the
+  // underlying response.
+  const category = getCrudCategory(toolDefinition.name);
+  const baseHandler = toolDefinition.handler as unknown as (...a: any[]) => Promise<any>;
+  const wrapped = async (...a: any[]) => {
+    const result = await baseHandler(...a);
+    try {
+      if (result && Array.isArray(result.content)) {
+        await injectQboLinkIntoContent(toolDefinition.name, result.content);
+      }
+    } catch {
+      /* link injection is best-effort — never fail the tool call */
+    }
+    return result;
+  };
+  const handler = (
+    category === CRUD_CATEGORY.WRITE || category === CRUD_CATEGORY.UPDATE ? wrapped : baseHandler
+  ) as typeof toolDefinition.handler;
+
+  server.tool(toolDefinition.name, toolDefinition.description, { params: toolDefinition.schema }, handler);
+
+  // Legacy hyphenated names (create-bill, update-vendor, ...) get an
+  // underscore alias (create_bill, ...) for naming consistency with the rest
+  // of the surface. The hyphen name stays registered for backward compat.
+  if (toolDefinition.name.includes("-")) {
+    const alias = toolDefinition.name.replace(/-/g, "_");
+    server.tool(
+      alias,
+      `${toolDefinition.description} (Alias of ${toolDefinition.name}.)`,
+      { params: toolDefinition.schema },
+      handler
+    );
+  }
 }

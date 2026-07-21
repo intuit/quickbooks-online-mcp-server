@@ -1,6 +1,7 @@
 import { searchQuickbooksBills } from "../handlers/search-quickbooks-bills.handler.js";
 import { ToolDefinition } from "../types/tool-definition.js";
 import { z } from "zod";
+import { shapeSearchResults } from "../helpers/build-quickbooks-search-criteria.js";
 
 const toolName = "search_bills";
 const toolDescription = "Search bills in QuickBooks Online that match given criteria.";
@@ -31,13 +32,13 @@ const billFieldEnum = z.enum([
 
 const criterionSchema = z.object({
   key: z.string().describe("Simple key (legacy) – any Bill property name."),
-  value: z.union([z.string(), z.boolean()]),
+  value: z.union([z.string(), z.number(), z.boolean(), z.array(z.union([z.string(), z.number()]))]),
 });
 
 // Advanced criterion schema with operator support.
 const advancedCriterionSchema = z.object({
   field: billFieldEnum,
-  value: z.union([z.string(), z.boolean()]),
+  value: z.union([z.string(), z.number(), z.boolean(), z.array(z.union([z.string(), z.number()]))]),
   operator: z
     .enum(["=", "<", ">", "<=", ">=", "LIKE", "IN"])
     .optional()
@@ -59,6 +60,8 @@ const toolSchema = z.object({
   desc: z.string().optional(),
   fetchAll: z.boolean().optional(),
   count: z.boolean().optional(),
+  fields: z.array(z.string()).optional().describe("Project results to these dot-path fields (e.g. ['Id','TotalAmt','VendorRef.name'])"),
+  summary: z.boolean().optional().describe("Return one compact line per entity (Id, DocNumber, refs, TxnDate, TotalAmt, Balance)"),
 });
 
 export const SearchBillsTool: ToolDefinition<typeof toolSchema> = {
@@ -66,7 +69,7 @@ export const SearchBillsTool: ToolDefinition<typeof toolSchema> = {
   description: toolDescription,
   schema: toolSchema,
   handler: async (args) => {
-    const { criteria = [], ...options } = (args.params ?? {}) as z.infer<typeof toolSchema>;
+    const { criteria = [], fields, summary, ...options } = (args.params ?? {}) as z.infer<typeof toolSchema>;
 
     // build criteria to pass to SDK, supporting advanced operator syntax
     let criteriaToSend: any;
@@ -90,11 +93,12 @@ export const SearchBillsTool: ToolDefinition<typeof toolSchema> = {
         content: [{ type: "text" as const, text: `Error searching bills: ${response.error}` }],
       };
     }
+    const shaped = Array.isArray(response.result) ? shapeSearchResults(response.result, { fields, summary }) : (response.result ?? []);
     return {
       content: [
-        { type: "text" as const, text: Array.isArray(response.result) ? `Found ${response.result.length} bills:` : `Count: ${response.result}` },
+        { type: "text" as const, text: Array.isArray(response.result) ? `Found ${shaped.length} bills:` : `Count: ${response.result}` },
         ...(Array.isArray(response.result)
-          ? response.result.map((b) => ({ type: "text" as const, text: JSON.stringify(b) }))
+          ? shaped.map((b: any) => ({ type: "text" as const, text: JSON.stringify(b) }))
           : []),
       ],
     };
