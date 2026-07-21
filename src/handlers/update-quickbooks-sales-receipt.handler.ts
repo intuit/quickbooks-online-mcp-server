@@ -1,6 +1,7 @@
 import { QuickbooksClient } from "../clients/quickbooks-client.js";
 import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
+import { mergeForFullUpdate, promisifyGetter } from "../helpers/read-merge-write.js";
 
 export interface UpdateSalesReceiptInput {
   id: string;
@@ -30,8 +31,14 @@ export async function updateQuickbooksSalesReceipt(data: UpdateSalesReceiptInput
       payload.DocNumber = data.doc_number;
     }
 
+    // Read-merge-write: QBO sparse updates are unreliable (omitted fields
+    // can be nulled; line-bearing sparse updates are rejected). Fetch the
+    // current entity, merge changes over it, send a full update.
+
+    const merged = await mergeForFullUpdate(promisifyGetter(quickbooks, "getSalesReceipt"), payload);
+
     return new Promise((resolve) => {
-      (quickbooks as any).updateSalesReceipt(payload, (err: any, updated: any) => {
+      (quickbooks as any).updateSalesReceipt(merged, (err: any, updated: any) => {
         if (err) {
           resolve({ result: null, isError: true, error: formatError(err) });
         } else {

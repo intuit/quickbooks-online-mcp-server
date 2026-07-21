@@ -12,6 +12,10 @@ const toolSchema = z.object({
   total_amt: z.number().optional().describe("Total payment amount"),
   payment_method_ref: z.string().optional().describe("Payment method ID"),
   private_note: z.string().optional().describe("Private note"),
+  deposit_to_account_ref: z
+    .string()
+    .optional()
+    .describe("Account ID the payment is deposited to (Payment.DepositToAccountRef)"),
 });
 
 const toolHandler = async ({ params }: any) => {
