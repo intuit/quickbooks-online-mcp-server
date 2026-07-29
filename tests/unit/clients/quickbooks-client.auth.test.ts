@@ -164,4 +164,41 @@ describe('QuickbooksClient.authenticate', () => {
     expect(refreshDispatch).toHaveBeenLastCalledWith('flow-refresh-token');
     expect(res.writeHead).toHaveBeenCalledWith(200, { 'Content-Type': 'text/html' });
   }, 15000);
+
+  it('authorizes and exchanges with QUICKBOOKS_OAUTH_PUBLIC_CALLBACK when set, for production tunnels', async () => {
+    // Production apps cannot register a localhost redirect, so the flow must be
+    // able to front the local callback server with a public tunnel URL. Both
+    // authorize and exchange have to use it or Intuit rejects the exchange.
+    const tunnel = 'https://example-tunnel.ngrok-free.dev/callback';
+    process.env.QUICKBOOKS_OAUTH_PUBLIC_CALLBACK = tunnel;
+    callbackHandler = undefined;
+
+    try {
+      (quickbooksClient as unknown as { accessTokenExpiry?: Date }).accessTokenExpiry = new Date(0);
+
+      refreshDispatch
+        .mockRejectedValueOnce(new Error('invalid_grant'))
+        .mockResolvedValueOnce({
+          token: { access_token: 'access-3', expires_in: 3600, refresh_token: 'rotated-3' },
+        });
+      createTokenDispatch.mockResolvedValueOnce({
+        token: { refresh_token: 'tunnel-refresh-token', realmId: '12345' },
+      });
+
+      const authPromise = quickbooksClient.authenticate();
+
+      await untilCallbackRegistered();
+      const res = { writeHead: jest.fn(), end: jest.fn() };
+      await callbackHandler!({ url: '/callback?code=xyz&state=testState', method: 'GET' }, res);
+
+      await authPromise;
+
+      const flowClient = oauthInstances[oauthInstances.length - 1];
+      expect(flowClient.cfg.redirectUri).toBe(tunnel);
+      expect(flowClient.createToken).toHaveBeenCalledWith('/callback?code=xyz&state=testState');
+      expect(refreshDispatch).toHaveBeenLastCalledWith('tunnel-refresh-token');
+    } finally {
+      delete process.env.QUICKBOOKS_OAUTH_PUBLIC_CALLBACK;
+    }
+  }, 15000);
 });

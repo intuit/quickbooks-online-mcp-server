@@ -107,16 +107,25 @@ export class QuickbooksClient {
     this.isAuthenticating = true;
     const port = 8000;
 
-    // The local server below receives the callback, so the authorize/exchange
-    // pair must use the localhost redirect even when QUICKBOOKS_REDIRECT_URI
-    // points elsewhere (e.g. the OAuth playground used for manual token
-    // generation). Intuit rejects the exchange if the redirect_uri does not
-    // match the one used in the authorize request.
+    // The local server below receives the callback, so by default the
+    // authorize/exchange pair must use the localhost redirect even when
+    // QUICKBOOKS_REDIRECT_URI points elsewhere (e.g. the OAuth playground used
+    // for manual token generation). Intuit rejects the exchange if the
+    // redirect_uri does not match the one used in the authorize request.
+    //
+    // Production apps are the exception: Intuit refuses to register a localhost
+    // redirect for them, so the authorize step fails before a callback can ever
+    // arrive. For that case a public tunnel (ngrok et al) that forwards to this
+    // port can be declared via QUICKBOOKS_OAUTH_PUBLIC_CALLBACK. It is then used
+    // for BOTH authorize and exchange (they must match), while the callback
+    // still lands on the local server below by way of the tunnel.
+    const publicCallback = process.env.QUICKBOOKS_OAUTH_PUBLIC_CALLBACK;
+    const flowRedirectUri = publicCallback || `http://localhost:${port}/callback`;
     const flowClient = new OAuthClient({
       clientId: this.clientId,
       clientSecret: this.clientSecret,
       environment: this.environment,
-      redirectUri: `http://localhost:${port}/callback`,
+      redirectUri: flowRedirectUri,
     });
 
     return new Promise((resolve, reject) => {
@@ -226,7 +235,12 @@ export class QuickbooksClient {
         }).toString();
 
         console.log('\n=== QuickBooks Authorization ===');
-        console.log('Open this URL in a browser to authorize:\n');
+        console.log(`Environment: ${this.environment}`);
+        console.log(`Callback redirect_uri: ${flowRedirectUri}`);
+        if (publicCallback) {
+          console.log(`(public tunnel must forward to port ${port}, and this exact URL must be registered in your Intuit app)`);
+        }
+        console.log('\nOpen this URL in a browser to authorize:\n');
         console.log(authUri);
         console.log('\nWaiting for callback...\n');
 
