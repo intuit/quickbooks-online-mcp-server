@@ -12,6 +12,8 @@
  * 4. isSymbolicLink: fails closed (returns false) on any fs error.
  */
 import { jest } from '@jest/globals';
+import os from 'os';
+import nodePath from 'path';
 
 process.env.QUICKBOOKS_CLIENT_ID = 'test-client-id';
 process.env.QUICKBOOKS_CLIENT_SECRET = 'test-client-secret';
@@ -19,6 +21,8 @@ process.env.QUICKBOOKS_REFRESH_TOKEN = 'initial-token';
 process.env.QUICKBOOKS_REALM_ID = '99999';
 process.env.QUICKBOOKS_ENVIRONMENT = 'sandbox';
 process.env.QUICKBOOKS_REDIRECT_URI = 'http://localhost:8000/callback';
+// Keep the rotated-token store out of the developer's real home directory.
+process.env.QUICKBOOKS_TOKEN_STORE = nodePath.join(os.tmpdir(), 'qbo-symlink-test-tokens.json');
 
 // --- fs mock state (mutated by each test) ---
 let lstatBehavior: 'regular' | 'symlink' | 'throws' = 'regular';

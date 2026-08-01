@@ -14,6 +14,8 @@
  *    redirect_uri differs from the one used in the authorize request.
  */
 import { jest } from '@jest/globals';
+import os from 'os';
+import path from 'path';
 
 // The module under test validates env at import time. Set deterministic
 // values before importing it. QUICKBOOKS_REDIRECT_URI deliberately points
@@ -24,6 +26,8 @@ process.env.QUICKBOOKS_REFRESH_TOKEN = 'stale-refresh-token';
 process.env.QUICKBOOKS_REALM_ID = '12345';
 process.env.QUICKBOOKS_ENVIRONMENT = 'sandbox';
 process.env.QUICKBOOKS_REDIRECT_URI = 'https://developer.intuit.com/v2/OAuth2Playground/RedirectUrl';
+// Keep the rotated-token store out of the developer's real home directory.
+process.env.QUICKBOOKS_TOKEN_STORE = path.join(os.tmpdir(), 'qbo-auth-test-tokens.json');
 
 // Track every OAuthClient the module constructs so tests can tell the
 // module-level client (env redirect) apart from the flow client (localhost).

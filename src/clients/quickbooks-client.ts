@@ -6,6 +6,12 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import open from 'open';
+import {
+  readTokenStore,
+  resolveTokenStorePath,
+  selectRefreshToken,
+  writeTokenStore,
+} from '../helpers/token-store.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -59,6 +65,11 @@ export class QuickbooksClient {
   private isAuthenticating: boolean = false;
   private redirectUri: string;
 
+  // Sidecar store for rotated tokens, plus the environment-supplied token the
+  // current rotation chain began from. See persistRotatedToken().
+  private readonly tokenStorePath: string;
+  private readonly seedRefreshToken?: string;
+
   // Refresh 5 minutes before actual expiry to avoid edge cases
   private static readonly TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
 
@@ -82,10 +93,17 @@ export class QuickbooksClient {
   }) {
     this.clientId = config.clientId;
     this.clientSecret = config.clientSecret;
-    this.refreshToken = config.refreshToken;
-    this.realmId = config.realmId;
     this.environment = config.environment;
     this.redirectUri = config.redirectUri;
+
+    // A token rotated during an earlier run supersedes the configured one,
+    // but only while it descends from that same configured token — so
+    // re-authenticating by hand still takes precedence over a stale store.
+    this.tokenStorePath = resolveTokenStorePath();
+    this.seedRefreshToken = config.refreshToken;
+    const stored = readTokenStore(this.tokenStorePath);
+    this.refreshToken = selectRefreshToken(config.refreshToken, stored);
+    this.realmId = config.realmId || stored?.realm_id;
     this.oauthClient = new OAuthClient({
       clientId: this.clientId,
       clientSecret: this.clientSecret,
@@ -159,6 +177,7 @@ export class QuickbooksClient {
             // Save tokens
             this.refreshToken = tokens.refresh_token;
             this.realmId = tokens.realmId;
+            this.persistRotatedToken(tokens.refresh_token);
             this.saveTokensToEnv();
 
             // Send success response
@@ -244,6 +263,29 @@ export class QuickbooksClient {
         this.isAuthenticating = false;
         reject(error);
       });
+    });
+  }
+
+  /**
+   * Records a rotated refresh token in the sidecar store.
+   *
+   * Writing .env is not sufficient on its own. Credentials are commonly
+   * injected as environment variables by an MCP host's config file, which this
+   * process cannot write back to, and dotenv does not override a variable that
+   * is already set — so on the next start the stale configured token would win
+   * over the rotated one written to .env.
+   *
+   * Never throws: failing to record a rotation must not fail the API call that
+   * triggered it.
+   */
+  private persistRotatedToken(rotatedToken?: string): void {
+    if (!rotatedToken) return;
+
+    writeTokenStore(this.tokenStorePath, {
+      refresh_token: rotatedToken,
+      realm_id: this.realmId,
+      seed_refresh_token: this.seedRefreshToken,
+      updated_at: new Date().toISOString(),
     });
   }
 
@@ -358,6 +400,7 @@ export class QuickbooksClient {
         const newRefreshToken = token.refresh_token;
         if (newRefreshToken && newRefreshToken !== this.refreshToken) {
           this.refreshToken = newRefreshToken;
+          this.persistRotatedToken(newRefreshToken);
           try {
             this.saveTokensToEnv();
             console.error('[qbo-client] Refresh token rotated and persisted to .env');
