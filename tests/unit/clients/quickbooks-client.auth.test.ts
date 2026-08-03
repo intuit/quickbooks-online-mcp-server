@@ -12,6 +12,9 @@
  *    callback redirect, even when QUICKBOOKS_REDIRECT_URI points elsewhere
  *    (e.g. the OAuth playground). Intuit rejects the code exchange if the
  *    redirect_uri differs from the one used in the authorize request.
+ * 3. That default is overridable by QUICKBOOKS_OAUTH_PUBLIC_CALLBACK, for
+ *    production apps where Intuit will not register a localhost redirect and
+ *    a public tunnel fronts the local callback server.
  */
 import { jest } from '@jest/globals';
 
@@ -111,6 +114,14 @@ async function untilCallbackRegistered(timeoutMs = 2000): Promise<void> {
 }
 
 describe('QuickbooksClient.authenticate', () => {
+  // dotenv loads the developer's real .env at import time with override: true,
+  // so a QUICKBOOKS_OAUTH_PUBLIC_CALLBACK set there would leak into the tests
+  // that pin the localhost default. Clear it here — after the import above —
+  // and let the test that needs it set it explicitly.
+  beforeEach(() => {
+    delete process.env.QUICKBOOKS_OAUTH_PUBLIC_CALLBACK;
+  });
+
   it('refreshes silently without starting the interactive flow when the refresh token works', async () => {
     refreshDispatch.mockResolvedValueOnce({
       token: { access_token: 'access-1', expires_in: 3600, refresh_token: 'rotated-1' },
