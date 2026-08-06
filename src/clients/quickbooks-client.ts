@@ -107,16 +107,19 @@ export class QuickbooksClient {
     this.isAuthenticating = true;
     const port = 8000;
 
-    // The local server below receives the callback, so the authorize/exchange
-    // pair must use the localhost redirect even when QUICKBOOKS_REDIRECT_URI
-    // points elsewhere (e.g. the OAuth playground used for manual token
-    // generation). Intuit rejects the exchange if the redirect_uri does not
-    // match the one used in the authorize request.
+    // The authorize/exchange pair must use whatever redirect_uri is actually
+    // registered on the Intuit app — Intuit rejects the exchange if it doesn't
+    // match the one used in the authorize request. For sandbox that's normally
+    // http://localhost:8000/callback; for production Intuit rejects localhost
+    // outright, so QUICKBOOKS_REDIRECT_URI is expected to be a public HTTPS URL
+    // (e.g. an ngrok tunnel) that forwards to this same local port. The local
+    // listener below always binds to `port` regardless of this value.
+    const oauthRedirectUri = process.env.QUICKBOOKS_REDIRECT_URI || `http://localhost:${port}/callback`;
     const flowClient = new OAuthClient({
       clientId: this.clientId,
       clientSecret: this.clientSecret,
       environment: this.environment,
-      redirectUri: `http://localhost:${port}/callback`,
+      redirectUri: oauthRedirectUri,
     });
 
     return new Promise((resolve, reject) => {

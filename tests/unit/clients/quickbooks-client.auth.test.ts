@@ -8,16 +8,18 @@
  *    stored refresh token is rejected (e.g. invalid_grant after the token
  *    was rotated by another consumer, expired past the 100-day window, or
  *    was revoked).
- * 2. The interactive flow must authorize AND exchange with the localhost
- *    callback redirect, even when QUICKBOOKS_REDIRECT_URI points elsewhere
- *    (e.g. the OAuth playground). Intuit rejects the code exchange if the
- *    redirect_uri differs from the one used in the authorize request.
+ * 2. The interactive flow must authorize AND exchange using whatever
+ *    QUICKBOOKS_REDIRECT_URI is configured (e.g. the OAuth playground, or a
+ *    production HTTPS tunnel) rather than a hardcoded localhost redirect —
+ *    Intuit rejects both the exchange (mismatched redirect_uri) and, for
+ *    production apps, the authorize request itself if it's a bare localhost
+ *    URL.
  */
 import { jest } from '@jest/globals';
 
 // The module under test validates env at import time. Set deterministic
 // values before importing it. QUICKBOOKS_REDIRECT_URI deliberately points
-// away from localhost to prove the flow ignores it.
+// away from localhost to prove the flow actually uses it.
 process.env.QUICKBOOKS_CLIENT_ID = 'test-client-id';
 process.env.QUICKBOOKS_CLIENT_SECRET = 'test-client-secret';
 process.env.QUICKBOOKS_REFRESH_TOKEN = 'stale-refresh-token';
@@ -124,7 +126,7 @@ describe('QuickbooksClient.authenticate', () => {
     expect(callbackHandler).toBeUndefined();
   });
 
-  it('falls back to the interactive OAuth flow when the refresh token is rejected, and uses the localhost redirect', async () => {
+  it('falls back to the interactive OAuth flow when the refresh token is rejected, and uses QUICKBOOKS_REDIRECT_URI', async () => {
     // Force the next authenticate() to attempt a refresh.
     (quickbooksClient as unknown as { accessTokenExpiry?: Date }).accessTokenExpiry = new Date(0);
 
@@ -149,11 +151,13 @@ describe('QuickbooksClient.authenticate', () => {
 
     await authPromise;
 
-    // A second OAuthClient was constructed for the flow, with the localhost
-    // redirect (NOT the playground URI from the environment).
+    // A second OAuthClient was constructed for the flow, using
+    // QUICKBOOKS_REDIRECT_URI from the environment (NOT a hardcoded
+    // localhost redirect) — required for production apps, which Intuit
+    // rejects a bare localhost redirect_uri for outright.
     expect(oauthInstances).toHaveLength(2);
     const flowClient = oauthInstances[1];
-    expect(flowClient.cfg.redirectUri).toBe('http://localhost:8000/callback');
+    expect(flowClient.cfg.redirectUri).toBe(process.env.QUICKBOOKS_REDIRECT_URI);
 
     // The code exchange went through the flow client, so authorize and
     // exchange used the same redirect_uri.
