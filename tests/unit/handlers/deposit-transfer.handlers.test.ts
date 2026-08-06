@@ -64,6 +64,25 @@ describe('Deposit and Transfer Handlers', () => {
       expect(result.result).toEqual(mockDeposit);
     });
 
+    it('should send the Entity field in the flat {value, type} shape QBO actually expects', async () => {
+      // Regression guard: this used to send a nested { Type, EntityRef: { value } }
+      // shape, which QBO silently ignores — entity_ref never actually reached
+      // the created deposit's line. Confirmed against a live GET response that
+      // QBO's real Deposit.Line[].DepositLineDetail.Entity shape is flat.
+      let captured: any;
+      mockQuickBooksInstance.createDeposit.mockImplementation((payload: any, cb: any) => {
+        captured = payload;
+        cb(null, payload);
+      });
+
+      await createQuickbooksDeposit({
+        deposit_to_account_ref: 'account-1',
+        line_items: [{ amount: 1000, entity_ref: { type: 'Customer', value: 'cust-1' } }],
+      });
+
+      expect(captured.Line[0].DepositLineDetail.Entity).toEqual({ value: 'cust-1', type: 'Customer' });
+    });
+
     it('should create a deposit - API error', async () => {
       mockQuickBooksInstance.createDeposit.mockImplementation((payload: any, cb: any) =>
         cb(new Error('Create failed'), null)
