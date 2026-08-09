@@ -6,6 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import open from 'open';
+import { loadTokenSidecar, resolveRefreshToken } from './token-sidecar.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -31,9 +32,20 @@ process.on('unhandledRejection', (reason) => {
 
 const client_id = process.env.QUICKBOOKS_CLIENT_ID;
 const client_secret = process.env.QUICKBOOKS_CLIENT_SECRET;
-const refresh_token = process.env.QUICKBOOKS_REFRESH_TOKEN;
-const realm_id = process.env.QUICKBOOKS_REALM_ID;
 const environment = process.env.QUICKBOOKS_ENVIRONMENT || 'sandbox';
+
+// A rotated refresh token may live in the sidecar file rather than the
+// host-supplied env var — see token-sidecar.ts for the chain-trust rule
+// that decides which one wins (#117).
+const tokenSidecar = loadTokenSidecar();
+const resolvedTokens = resolveRefreshToken(
+  process.env.QUICKBOOKS_REFRESH_TOKEN,
+  process.env.QUICKBOOKS_REALM_ID,
+  tokenSidecar
+);
+const refresh_token = resolvedTokens.refreshToken;
+const realm_id = resolvedTokens.realmId;
+const token_chain_root = resolvedTokens.chainRoot;
 // Fix for Issue #5: Use env var with underscore (QUICKBOOKS_REDIRECT_URI)
 const redirect_uri = process.env.QUICKBOOKS_REDIRECT_URI || 'http://localhost:8000/callback';
 
@@ -50,6 +62,7 @@ export class QuickbooksClient {
   private readonly clientId: string;
   private readonly clientSecret: string;
   private refreshToken?: string;
+  private tokenChainRoot?: string;
   private realmId?: string;
   private readonly environment: string;
   private accessToken?: string;
@@ -76,6 +89,7 @@ export class QuickbooksClient {
     clientId: string;
     clientSecret: string;
     refreshToken?: string;
+    tokenChainRoot?: string;
     realmId?: string;
     environment: string;
     redirectUri: string;
@@ -83,6 +97,7 @@ export class QuickbooksClient {
     this.clientId = config.clientId;
     this.clientSecret = config.clientSecret;
     this.refreshToken = config.refreshToken;
+    this.tokenChainRoot = config.tokenChainRoot;
     this.realmId = config.realmId;
     this.environment = config.environment;
     this.redirectUri = config.redirectUri;
@@ -495,4 +510,5 @@ export const quickbooksClient = new QuickbooksClient({
   realmId: realm_id,
   environment: environment,
   redirectUri: redirect_uri,
+  tokenChainRoot: token_chain_root,
 });
