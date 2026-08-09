@@ -323,6 +323,10 @@ If upgrading from the original Intuit implementation:
 
 ## [Unreleased]
 
+### Fixed
+
+- Rotated refresh tokens are now persisted to a `tokens.json` sidecar file (in addition to `.env`), so env-var-based deployments (Docker, MCP host `env` config blocks) don't silently lose token rotation on restart. Override the sidecar location with `QUICKBOOKS_TOKEN_STORE_PATH`. (#117)
+
 ### Planned
 
 - Integration tests with QuickBooks sandbox

@@ -71,6 +71,9 @@ QUICKBOOKS_REALM_ID=your_realm_id
 # QUICKBOOKS_DISABLE_WRITE=true    # suppress create_* tools
 # QUICKBOOKS_DISABLE_UPDATE=true   # suppress update_* tools
 # QUICKBOOKS_DISABLE_DELETE=true   # suppress delete_* tools
+
+# Optional: override where the rotated-refresh-token sidecar is stored (default: install root)
+# QUICKBOOKS_TOKEN_STORE_PATH=/path/to/tokens.json
 ```
 
 `.env` is gitignored so your real credentials stay local.
