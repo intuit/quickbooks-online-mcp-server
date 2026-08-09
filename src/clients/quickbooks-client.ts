@@ -176,6 +176,20 @@ export class QuickbooksClient {
             this.realmId = tokens.realmId;
             this.saveTokensToEnv();
 
+            if (this.refreshToken) {
+              this.tokenChainRoot = this.refreshToken;
+              try {
+                saveTokenSidecar({
+                  refreshToken: this.refreshToken,
+                  realmId: this.realmId,
+                  descendedFrom: this.tokenChainRoot,
+                  updatedAt: new Date().toISOString(),
+                });
+              } catch (persistErr) {
+                console.error('[qbo-client] Failed to persist new refresh token to sidecar:', persistErr);
+              }
+            }
+
             // Send success response
             res.writeHead(200, { 'Content-Type': 'text/html' });
             res.end(`

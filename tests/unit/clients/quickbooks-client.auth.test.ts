@@ -87,15 +87,17 @@ jest.unstable_mockModule('http', () => ({
 }));
 
 const enoent = () => Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+const writeFileSyncSpy = jest.fn<(p: string, data: string, options?: any) => void>();
 jest.unstable_mockModule('fs', () => ({
   default: {
     readFileSync: jest.fn(() => {
       throw enoent();
     }),
     existsSync: jest.fn(() => false),
-    writeFileSync: jest.fn(),
+    writeFileSync: writeFileSyncSpy,
     renameSync: jest.fn(),
     unlinkSync: jest.fn(),
+    mkdirSync: jest.fn(),
   },
 }));
 
@@ -163,5 +165,13 @@ describe('QuickbooksClient.authenticate', () => {
     // The flow's new refresh token was then exchanged for an access token.
     expect(refreshDispatch).toHaveBeenLastCalledWith('flow-refresh-token');
     expect(res.writeHead).toHaveBeenCalledWith(200, { 'Content-Type': 'text/html' });
+
+    // The first-run OAuth completion also seeds the sidecar so the very
+    // next rotation has a chain root to compare against.
+    const sidecarCall = writeFileSyncSpy.mock.calls.find(([p]) => String(p).includes('tokens.json.tmp.'));
+    expect(sidecarCall).toBeDefined();
+    const sidecarContent = JSON.parse(sidecarCall![1] as string);
+    expect(sidecarContent.refreshToken).toBe('flow-refresh-token');
+    expect(sidecarContent.descendedFrom).toBe('flow-refresh-token');
   }, 15000);
 });
