@@ -9,6 +9,7 @@ let readlinkTarget = '/fresh-pvc/tokens.json';
 const writeFileSyncSpy = jest.fn<(p: string, data: string, options?: any) => void>();
 const renameSyncSpy = jest.fn<(o: string, n: string) => void>();
 const mkdirSyncSpy = jest.fn<(p: string, options?: any) => void>();
+const unlinkSyncSpy = jest.fn<(p: string) => void>();
 let consoleErrorSpy: ReturnType<typeof jest.spyOn>;
 
 jest.unstable_mockModule('fs', () => ({
@@ -21,7 +22,7 @@ jest.unstable_mockModule('fs', () => ({
     }),
     writeFileSync: writeFileSyncSpy,
     renameSync: renameSyncSpy,
-    unlinkSync: jest.fn(),
+    unlinkSync: unlinkSyncSpy,
     mkdirSync: mkdirSyncSpy,
     lstatSync: jest.fn(() => {
       if (lstatBehavior === 'throws') throw new Error('EACCES');
@@ -75,6 +76,7 @@ describe('saveTokenSidecar', () => {
     writeFileSyncSpy.mockClear();
     renameSyncSpy.mockClear();
     mkdirSyncSpy.mockClear();
+    unlinkSyncSpy.mockClear();
     lstatBehavior = 'regular';
     realpathBehavior = 'ok';
     readlinkTarget = '/fresh-pvc/tokens.json';
@@ -119,5 +121,27 @@ describe('saveTokenSidecar', () => {
       expect.any(String),
       expect.objectContaining({ mode: 0o600 }),
     );
+  });
+
+  it('resolves a RELATIVE dangling-symlink target against the link directory', () => {
+    lstatBehavior = 'symlink';
+    realpathBehavior = 'enoent';
+    readlinkTarget = '../vol/tokens.json';
+    saveTokenSidecar(data);
+    expect(renameSyncSpy).not.toHaveBeenCalled();
+    const writtenPath = writeFileSyncSpy.mock.calls[0][0] as string;
+    expect(writtenPath).not.toBe('../vol/tokens.json');
+    expect(writtenPath.startsWith('/')).toBe(true);
+    expect(writtenPath.endsWith('/vol/tokens.json')).toBe(true);
+  });
+
+  it('cleans up the temp file and re-throws when the write fails', () => {
+    const writeErr = new Error('ENOSPC');
+    writeFileSyncSpy.mockImplementationOnce(() => {
+      throw writeErr;
+    });
+    expect(() => saveTokenSidecar(data)).toThrow(writeErr);
+    expect(unlinkSyncSpy).toHaveBeenCalledWith(expect.stringContaining('tokens.json.tmp.'));
+    expect(renameSyncSpy).not.toHaveBeenCalled();
   });
 });
