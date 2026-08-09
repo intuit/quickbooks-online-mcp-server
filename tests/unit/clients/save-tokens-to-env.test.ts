@@ -49,6 +49,7 @@ jest.unstable_mockModule('fs', () => ({
       return REAL_PATH;
     }),
     readlinkSync: jest.fn(() => readlinkTarget),
+    mkdirSync: jest.fn(),
   },
 }));
 
@@ -185,5 +186,37 @@ describe('saveTokensToEnv (via authenticate)', () => {
     // authenticate() catches saveTokensToEnv errors (line 336-338 in source)
     // and logs them; it should NOT throw.
     await expect(quickbooksClient.authenticate()).resolves.not.toThrow();
+  });
+
+  it('also persists the rotated token to the sidecar file with an unchanged chain root', async () => {
+    lstatBehavior = 'regular';
+
+    await quickbooksClient.authenticate();
+
+    const sidecarCall = writeFileSyncSpy.mock.calls.find(([p]) => String(p).includes('tokens.json.tmp.'));
+    expect(sidecarCall).toBeDefined();
+    const [, content] = sidecarCall!;
+    const parsed = JSON.parse(content as string);
+    expect(parsed.refreshToken).toBe(`rotated-${tokenCounter}`);
+    expect(parsed.descendedFrom).toBe('initial-token');
+  });
+
+  it('keeps descendedFrom unchanged across two successive rotations', async () => {
+    lstatBehavior = 'regular';
+
+    await quickbooksClient.authenticate();
+    (quickbooksClient as any).accessTokenExpiry = new Date(0);
+    (quickbooksClient as any).authInFlight = undefined;
+    tokenCounter++;
+    refreshDispatch.mockResolvedValue({
+      token: { access_token: `access-${tokenCounter}`, expires_in: 3600, refresh_token: `rotated-${tokenCounter}` },
+    });
+    await quickbooksClient.authenticate();
+
+    const sidecarCalls = writeFileSyncSpy.mock.calls.filter(([p]) => String(p).includes('tokens.json.tmp.'));
+    const lastCall = sidecarCalls[sidecarCalls.length - 1];
+    const parsed = JSON.parse(lastCall[1] as string);
+    expect(parsed.refreshToken).toBe(`rotated-${tokenCounter}`);
+    expect(parsed.descendedFrom).toBe('initial-token');
   });
 });

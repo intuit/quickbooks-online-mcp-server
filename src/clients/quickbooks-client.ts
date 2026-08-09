@@ -6,7 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import open from 'open';
-import { loadTokenSidecar, resolveRefreshToken } from './token-sidecar.js';
+import { loadTokenSidecar, resolveRefreshToken, saveTokenSidecar } from './token-sidecar.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -380,6 +380,16 @@ export class QuickbooksClient {
             // Don't fail the whole refresh just because we couldn't write to
             // disk; the in-memory token is still valid for this process.
             console.error('[qbo-client] Failed to persist rotated refresh token:', persistErr);
+          }
+          try {
+            saveTokenSidecar({
+              refreshToken: newRefreshToken,
+              realmId: this.realmId,
+              descendedFrom: this.tokenChainRoot ?? newRefreshToken,
+              updatedAt: new Date().toISOString(),
+            });
+          } catch (persistErr) {
+            console.error('[qbo-client] Failed to persist rotated refresh token to sidecar:', persistErr);
           }
         }
 
