@@ -82,6 +82,10 @@ describe('saveTokenSidecar', () => {
     readlinkTarget = '/fresh-pvc/tokens.json';
   });
 
+  afterEach(() => {
+    delete process.env.QUICKBOOKS_TOKEN_STORE_PATH;
+  });
+
   it('creates the parent directory before writing', () => {
     saveTokenSidecar(data);
     expect(mkdirSyncSpy).toHaveBeenCalledWith(expect.any(String), { recursive: true });
@@ -143,5 +147,15 @@ describe('saveTokenSidecar', () => {
     expect(() => saveTokenSidecar(data)).toThrow(writeErr);
     expect(unlinkSyncSpy).toHaveBeenCalledWith(expect.stringContaining('tokens.json.tmp.'));
     expect(renameSyncSpy).not.toHaveBeenCalled();
+  });
+
+  it('honors QUICKBOOKS_TOKEN_STORE_PATH for both the parent dir and the write target', () => {
+    process.env.QUICKBOOKS_TOKEN_STORE_PATH = '/vol/tokens.json';
+    saveTokenSidecar(data);
+    expect(mkdirSyncSpy).toHaveBeenCalledWith('/vol', { recursive: true });
+    expect(renameSyncSpy).toHaveBeenCalledWith(
+      expect.stringContaining('/vol/tokens.json.tmp.'),
+      '/vol/tokens.json',
+    );
   });
 });
