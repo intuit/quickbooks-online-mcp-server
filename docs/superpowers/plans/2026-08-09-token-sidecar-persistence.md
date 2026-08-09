@@ -758,7 +758,7 @@ add:
             }
 ```
 
-(Placed after `this.saveTokensToEnv()`, matching that call's existing lack of its own try/catch at this call site — a failure here still falls into the outer handler's `catch (error)` block and returns the existing 500 response, unchanged from today's behavior for `.env`.)
+(Placed after `this.saveTokensToEnv()`, wrapped in its own try/catch — a failure here is logged and swallowed, matching Task 4's rotation-path pattern and the Global Constraint that no persistence failure may block authenticate()/refreshAccessToken(). Correction: an earlier draft of this note claimed the opposite — that a failure here would propagate to the outer catch and return a 500 — which contradicted the code above it. Verified during Task 5's review; ruling: the try/catch is correct, the prose was wrong.)
 
 - [ ] **Step 4: Run test to verify it passes**
 
