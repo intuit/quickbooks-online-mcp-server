@@ -9,7 +9,7 @@ let readlinkTarget = '/fresh-pvc/tokens.json';
 const writeFileSyncSpy = jest.fn<(p: string, data: string, options?: any) => void>();
 const renameSyncSpy = jest.fn<(o: string, n: string) => void>();
 const mkdirSyncSpy = jest.fn<(p: string, options?: any) => void>();
-const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+let consoleErrorSpy: ReturnType<typeof jest.spyOn>;
 
 jest.unstable_mockModule('fs', () => ({
   default: {
@@ -40,7 +40,7 @@ const { loadTokenSidecar, saveTokenSidecar } = await import('../../../src/client
 describe('loadTokenSidecar', () => {
   beforeEach(() => {
     readFileBehavior = 'ok';
-    consoleErrorSpy.mockClear();
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   it('returns null silently when the file does not exist', () => {
