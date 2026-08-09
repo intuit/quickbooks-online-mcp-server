@@ -2,7 +2,7 @@ import { jest } from '@jest/globals';
 
 let lstatBehavior: 'regular' | 'symlink' | 'throws' = 'regular';
 let realpathBehavior: 'ok' | 'enoent' = 'ok';
-let readFileBehavior: 'ok' | 'enoent' | 'corrupt' | 'eacces' = 'ok';
+let readFileBehavior: 'ok' | 'enoent' | 'corrupt' | 'eacces' | 'wrong-shape' | 'no-message' = 'ok';
 const REAL_PATH = '/persistent-volume/tokens.json';
 let readlinkTarget = '/fresh-pvc/tokens.json';
 
@@ -17,7 +17,9 @@ jest.unstable_mockModule('fs', () => ({
     readFileSync: jest.fn(() => {
       if (readFileBehavior === 'enoent') throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
       if (readFileBehavior === 'eacces') throw Object.assign(new Error('EACCES'), { code: 'EACCES' });
+      if (readFileBehavior === 'no-message') throw {};
       if (readFileBehavior === 'corrupt') return '{ not valid json';
+      if (readFileBehavior === 'wrong-shape') return JSON.stringify({ foo: 'bar' });
       return JSON.stringify({ refreshToken: 'stored-token', realmId: '99999', descendedFrom: 'host-token', updatedAt: '2026-08-01T00:00:00.000Z' });
     }),
     writeFileSync: writeFileSyncSpy,
@@ -64,6 +66,18 @@ describe('loadTokenSidecar', () => {
 
   it('returns null and logs a warning on a permission error', () => {
     readFileBehavior = 'eacces';
+    expect(loadTokenSidecar()).toBeNull();
+    expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to read token sidecar'));
+  });
+
+  it('returns null for validly-parsed JSON with the wrong shape', () => {
+    readFileBehavior = 'wrong-shape';
+    expect(loadTokenSidecar()).toBeNull();
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the raw error value when it has no message', () => {
+    readFileBehavior = 'no-message';
     expect(loadTokenSidecar()).toBeNull();
     expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to read token sidecar'));
   });

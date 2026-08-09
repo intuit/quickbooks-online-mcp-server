@@ -48,7 +48,11 @@ export function getSidecarPath(): string {
 export function loadTokenSidecar(): TokenSidecar | null {
   try {
     const raw = fs.readFileSync(getSidecarPath(), 'utf-8');
-    return JSON.parse(raw) as TokenSidecar;
+    const parsed = JSON.parse(raw);
+    if (typeof parsed?.refreshToken !== 'string' || typeof parsed?.descendedFrom !== 'string') {
+      return null;
+    }
+    return parsed as TokenSidecar;
   } catch (e: any) {
     if (e?.code === 'ENOENT') return null;
     console.error(`[qbo-client] Failed to read token sidecar, ignoring: ${e?.message ?? e}`);
