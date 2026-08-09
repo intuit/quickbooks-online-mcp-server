@@ -72,7 +72,10 @@ QUICKBOOKS_REALM_ID=your_realm_id
 # QUICKBOOKS_DISABLE_UPDATE=true   # suppress update_* tools
 # QUICKBOOKS_DISABLE_DELETE=true   # suppress delete_* tools
 
-# Optional: override where the rotated-refresh-token sidecar is stored (default: install root)
+# Optional: relocate the rotated-refresh-token store off the install root — set this to a path
+# on a persistent volume if your deployment's install root is read-only or ephemeral (e.g. some
+# container setups). Default: alongside .env in the install root, which already persists rotation
+# across restarts on any deployment where that directory itself persists.
 # QUICKBOOKS_TOKEN_STORE_PATH=/path/to/tokens.json
 ```
 

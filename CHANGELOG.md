@@ -325,7 +325,7 @@ If upgrading from the original Intuit implementation:
 
 ### Fixed
 
-- Rotated refresh tokens are now persisted to a `tokens.json` sidecar file (in addition to `.env`), so env-var-based deployments (Docker, MCP host `env` config blocks) don't silently lose token rotation on restart. Override the sidecar location with `QUICKBOOKS_TOKEN_STORE_PATH`. (#117)
+- Rotated refresh tokens can now be persisted to a relocatable `tokens.json` store (in addition to `.env`) via `QUICKBOOKS_TOKEN_STORE_PATH` — for deployments where the install root itself doesn't survive restarts (e.g. some ephemeral-container setups), point this at a persistent volume so rotation isn't lost. (#117)
 
 ### Planned
 

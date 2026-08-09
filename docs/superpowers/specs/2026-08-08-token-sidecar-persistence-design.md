@@ -9,6 +9,8 @@
 
 Rotation is silently lost on every restart. Once Intuit stops accepting the previously issued token, refresh fails with `invalid_grant` and the integration needs manual re-authentication — exactly the failure `19c90be` set out to prevent.
 
+> **Correction (2026-08-09, post-implementation review):** Point 2 above does not hold for this codebase. `quickbooks-client.ts` has called `dotenv.config({ ..., override: true })` since commit `5c95064` (2026-06-01) — `.env` already wins over a host-supplied `QUICKBOOKS_REFRESH_TOKEN` at the next startup. So in any deployment where the install root itself is writable and persistent, the rotated token written to `.env` **is** read back and **does** beat the host config value; the bug described above does not occur there. The sidecar built from this spec adds no persistence in that common case — it changes nothing by default. Its real, narrower value is `QUICKBOOKS_TOKEN_STORE_PATH`: a relocatable store that lets an operator move token persistence off the install root entirely, for the case where the install root itself is read-only or doesn't survive restarts (e.g. some ephemeral-container deployments). The rest of this document (schema, chain-trust resolution, atomic-write handling) is accurate and unaffected by this correction; only the stated root cause above is wrong. See the final whole-branch review (`final-review.md`, finding I1) for the full analysis.
+
 ## Approach
 
 Add a sidecar file, `tokens.json`, colocated with `.env` in the server's install root (same directory resolution `saveTokensToEnv` already uses, `__dirname/../../`). Override path via `QUICKBOOKS_TOKEN_STORE_PATH`.
