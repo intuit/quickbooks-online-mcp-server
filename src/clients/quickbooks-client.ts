@@ -174,7 +174,11 @@ export class QuickbooksClient {
             // Save tokens
             this.refreshToken = tokens.refresh_token;
             this.realmId = tokens.realmId;
-            this.saveTokensToEnv();
+            try {
+              this.saveTokensToEnv();
+            } catch (persistErr) {
+              console.error('[qbo-client] Failed to persist new refresh token to .env:', persistErr);
+            }
 
             if (this.refreshToken) {
               this.tokenChainRoot = this.refreshToken;
