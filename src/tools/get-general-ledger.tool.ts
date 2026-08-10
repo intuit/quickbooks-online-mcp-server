@@ -8,9 +8,17 @@ const toolSchema = z.object({
   start_date: z.string().optional().describe("Start date (YYYY-MM-DD)"),
   end_date: z.string().optional().describe("End date (YYYY-MM-DD)"),
   accounting_method: z.enum(["Cash", "Accrual"]).optional().describe("Accounting method"),
-  account: z.string().optional().describe("Filter by account ID"),
+  account: z.string().optional().describe("Filter by account ID (comma-separate for multiple)"),
   source_account: z.string().optional().describe("Filter by source account"),
   sort_by: z.string().optional().describe("Field to sort by"),
+  summary: z
+    .boolean()
+    .optional()
+    .describe("Return compact flattened rows ({column: value} per transaction line) instead of QBO's raw nested report — a fraction of the size"),
+  fields: z
+    .array(z.string())
+    .optional()
+    .describe("With summary, keep only these columns (by column title, e.g. ['Date','Amount','Balance'])"),
 });
 
 const toolHandler = async ({ params }: any) => {

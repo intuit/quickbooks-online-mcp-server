@@ -1,6 +1,7 @@
 import { searchQuickbooksVendors } from "../handlers/search-quickbooks-vendors.handler.js";
 import { ToolDefinition } from "../types/tool-definition.js";
 import { z } from "zod";
+import { shapeSearchResults } from "../helpers/build-quickbooks-search-criteria.js";
 
 const toolName = "search_vendors";
 const toolDescription = "Search vendors in QuickBooks Online that match given criteria.";
@@ -38,13 +39,13 @@ const vendorFieldEnum = z.enum([
 
 const criterionSchema = z.object({
   key: z.string().describe("Simple key (legacy) – any Vendor property name."),
-  value: z.union([z.string(), z.boolean()]),
+  value: z.union([z.string(), z.number(), z.boolean(), z.array(z.union([z.string(), z.number()]))]),
 });
 
 // Advanced criterion schema with operator support.
 const advancedCriterionSchema = z.object({
   field: vendorFieldEnum,
-  value: z.union([z.string(), z.boolean()]),
+  value: z.union([z.string(), z.number(), z.boolean(), z.array(z.union([z.string(), z.number()]))]),
   operator: z
     .enum(["=", "<", ">", "<=", ">=", "LIKE", "IN"])
     .optional()
@@ -66,6 +67,8 @@ const toolSchema = z.object({
   desc: z.string().optional(),
   fetchAll: z.boolean().optional(),
   count: z.boolean().optional(),
+  fields: z.array(z.string()).optional().describe("Project results to these dot-path fields (e.g. ['Id','TotalAmt','VendorRef.name'])"),
+  summary: z.boolean().optional().describe("Return one compact line per entity (Id, DocNumber, refs, TxnDate, TotalAmt, Balance)"),
 });
 
 export const SearchVendorsTool: ToolDefinition<typeof toolSchema> = {
@@ -73,7 +76,7 @@ export const SearchVendorsTool: ToolDefinition<typeof toolSchema> = {
   description: toolDescription,
   schema: toolSchema,
   handler: async (args) => {
-    const { criteria = [], ...options } = (args.params ?? {}) as z.infer<typeof toolSchema>;
+    const { criteria = [], fields, summary, ...options } = (args.params ?? {}) as z.infer<typeof toolSchema>;
 
     // build criteria to pass to SDK, supporting advanced operator syntax
     let criteriaToSend: any;
@@ -97,11 +100,12 @@ export const SearchVendorsTool: ToolDefinition<typeof toolSchema> = {
         content: [{ type: "text" as const, text: `Error searching vendors: ${response.error}` }],
       };
     }
+    const shaped = Array.isArray(response.result) ? shapeSearchResults(response.result, { fields, summary }) : (response.result ?? []);
     return {
       content: [
-        { type: "text" as const, text: Array.isArray(response.result) ? `Found ${response.result.length} vendors:` : `Count: ${response.result}` },
+        { type: "text" as const, text: Array.isArray(response.result) ? `Found ${shaped.length} vendors:` : `Count: ${response.result}` },
         ...(Array.isArray(response.result)
-          ? response.result.map((v) => ({ type: "text" as const, text: JSON.stringify(v) }))
+          ? shaped.map((v: any) => ({ type: "text" as const, text: JSON.stringify(v) }))
           : []),
       ],
     };

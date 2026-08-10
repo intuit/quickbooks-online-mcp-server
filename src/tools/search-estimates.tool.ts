@@ -1,6 +1,7 @@
 import { searchQuickbooksEstimates } from "../handlers/search-quickbooks-estimates.handler.js";
 import { ToolDefinition } from "../types/tool-definition.js";
 import { z } from "zod";
+import { shapeSearchResults } from "../helpers/build-quickbooks-search-criteria.js";
 
 const toolName = "search_estimates";
 const toolDescription = "Search estimates in QuickBooks Online that match given criteria.";
@@ -24,13 +25,13 @@ const estimateFieldEnum = z.enum([
 
 const criterionSchema = z.object({
   key: z.string().describe("Simple key (legacy) – any Estimate property name."),
-  value: z.union([z.string(), z.boolean()]),
+  value: z.union([z.string(), z.number(), z.boolean(), z.array(z.union([z.string(), z.number()]))]),
 });
 
 // Advanced criterion schema with operator support.
 const advancedCriterionSchema = z.object({
   field: estimateFieldEnum,
-  value: z.union([z.string(), z.boolean()]),
+  value: z.union([z.string(), z.number(), z.boolean(), z.array(z.union([z.string(), z.number()]))]),
   operator: z
     .enum(["=", "<", ">", "<=", ">=", "LIKE", "IN"])
     .optional()
@@ -52,6 +53,8 @@ const toolSchema = z.object({
   desc: z.string().optional(),
   fetchAll: z.boolean().optional(),
   count: z.boolean().optional(),
+  fields: z.array(z.string()).optional().describe("Project results to these dot-path fields (e.g. ['Id','TotalAmt','VendorRef.name'])"),
+  summary: z.boolean().optional().describe("Return one compact line per entity (Id, DocNumber, refs, TxnDate, TotalAmt, Balance)"),
 });
 
 export const SearchEstimatesTool: ToolDefinition<typeof toolSchema> = {
@@ -59,7 +62,7 @@ export const SearchEstimatesTool: ToolDefinition<typeof toolSchema> = {
   description: toolDescription,
   schema: toolSchema,
   handler: async (args) => {
-    const { criteria = [], ...options } = (args.params ?? {}) as z.infer<typeof toolSchema>;
+    const { criteria = [], fields, summary, ...options } = (args.params ?? {}) as z.infer<typeof toolSchema>;
 
     // build criteria to pass to SDK, supporting advanced operator syntax
     let criteriaToSend: any;
@@ -83,11 +86,12 @@ export const SearchEstimatesTool: ToolDefinition<typeof toolSchema> = {
         content: [{ type: "text" as const, text: `Error searching estimates: ${response.error}` }],
       };
     }
+    const shaped = Array.isArray(response.result) ? shapeSearchResults(response.result, { fields, summary }) : (response.result ?? []);
     return {
       content: [
-        { type: "text" as const, text: Array.isArray(response.result) ? `Found ${response.result.length} estimates:` : `Count: ${response.result}` },
+        { type: "text" as const, text: Array.isArray(response.result) ? `Found ${shaped.length} estimates:` : `Count: ${response.result}` },
         ...(Array.isArray(response.result)
-          ? response.result.map((e) => ({ type: "text" as const, text: JSON.stringify(e) }))
+          ? shaped.map((e: any) => ({ type: "text" as const, text: JSON.stringify(e) }))
           : []),
       ],
     };

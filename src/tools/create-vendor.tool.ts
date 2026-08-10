@@ -23,7 +23,15 @@ const toolSchema = z.object({
       CountrySubDivisionCode: z.string().optional(),
       PostalCode: z.string().optional(),
     }).optional(),
-  }),
+    // Vendor currency drives transaction currency and CANNOT be changed after
+    // the vendor's first use — it must be settable at create (defect #15).
+    CurrencyRef: z.object({ value: z.string(), name: z.string().optional() }).optional()
+      .describe("Vendor currency (e.g. {value:'USD'}). Immutable after first transaction — set it now."),
+    TermRef: z.object({ value: z.string(), name: z.string().optional() }).optional()
+      .describe("Default payment terms"),
+    TaxIdentifier: z.string().optional().describe("Vendor tax ID (BN/EIN/VAT number)"),
+    Vendor1099: z.boolean().optional().describe("Whether the vendor is 1099-eligible (US)"),
+  }).passthrough(),
 });
 
 const toolHandler = async (args: { [x: string]: any }) => {

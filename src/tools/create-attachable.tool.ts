@@ -45,15 +45,37 @@ const toolSchema = z.object({
     })
     .optional()
     .describe("Optional reference to a QBO entity this file is attached to."),
+  return_download_uri: z
+    .boolean()
+    .optional()
+    .describe(
+      "If true, include TempDownloadUri (a multi-KB pre-signed URL) in the response. Omitted by default to keep responses small — use get_attachable when you need the download link."
+    ),
 });
+
+// TempDownloadUri is a multi-KB pre-signed URL with an embedded auth blob —
+// stripped from responses by default (defect #16).
+function stripDownloadUris(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stripDownloadUris);
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (k === "TempDownloadUri") continue;
+      out[k] = stripDownloadUris(v);
+    }
+    return out;
+  }
+  return value;
+}
 
 const toolHandler = async ({ params }: any) => {
   const response = await createQuickbooksAttachable(params);
   if (response.isError) return { content: [{ type: "text" as const, text: `Error: ${response.error}` }] };
+  const result = params?.return_download_uri ? response.result : stripDownloadUris(response.result);
   return {
     content: [
       { type: "text" as const, text: `Attachable created:` },
-      { type: "text" as const, text: JSON.stringify(response.result, null, 2) },
+      { type: "text" as const, text: JSON.stringify(result, null, 2) },
     ],
   };
 };

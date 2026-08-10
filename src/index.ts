@@ -6,6 +6,8 @@ import { QuickbooksMCPServer } from "./server/qbo-mcp-server.js";
 // import { CreateCustomerTool } from "./tools/create-customer.tool.js";
 import { CreateInvoiceTool } from "./tools/create-invoice.tool.js";
 import { RegisterTool } from "./helpers/register-tool.js";
+import { GetTransactionLinkTool } from "./tools/get-transaction-link.tool.js";
+import { GetEntityAttachmentsTool } from "./tools/get-entity-attachments.tool.js";
 import { ReadInvoiceTool } from "./tools/read-invoice.tool.js";
 import { SearchInvoicesTool } from "./tools/search-invoices.tool.js";
 import { UpdateInvoiceTool } from "./tools/update-invoice.tool.js";
@@ -405,6 +407,8 @@ const main = async () => {
 
   // Add tools for company info
   RegisterTool(server, GetCompanyInfoTool);
+  RegisterTool(server, GetTransactionLinkTool);
+  RegisterTool(server, GetEntityAttachmentsTool);
   RegisterTool(server, UpdateCompanyInfoTool);
 
   // Add tools for preferences

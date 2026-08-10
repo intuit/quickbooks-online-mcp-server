@@ -100,6 +100,8 @@ const advancedCriteriaSchema = z.object({
   limit: z.number().optional(),
   offset: z.number().optional(),
   count: z.boolean().optional(),
+  fields: z.array(z.string()).optional().describe("Project results to these dot-path fields (e.g. ['Id','TotalAmt','VendorRef.name'])"),
+  summary: z.boolean().optional().describe("Return one compact line per entity (Id, DocNumber, refs, TxnDate, TotalAmt, Balance)"),
   fetchAll: z.boolean().optional(),
 });
 
