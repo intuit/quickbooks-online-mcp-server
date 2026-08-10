@@ -1,0 +1,16 @@
+node_modules
+npm-debug.log
+dist
+.git
+.gitignore
+README.md
+CONTRIBUTING.md
+LICENSE
+.github
+.env.example
+tests
+.eslintrc.json
+tsconfig.json
+jest.config.js
+.DS_Store
+*.md

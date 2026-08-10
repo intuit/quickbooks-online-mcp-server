@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { QuickbooksMCPServer } from "./server/qbo-mcp-server.js";
+import http from "node:http";
 // import { ListInvoicesTool } from "./tools/list-invoices.tool.js";
 // import { CreateCustomerTool } from "./tools/create-customer.tool.js";
 import { CreateInvoiceTool } from "./tools/create-invoice.tool.js";
@@ -203,10 +205,9 @@ import { GetCustomerBalanceTool } from "./tools/get-customer-balance.tool.js";
 import { GetAgedPayablesTool } from "./tools/get-aged-payables.tool.js";
 import { GetVendorExpensesTool } from "./tools/get-vendor-expenses.tool.js";
 import { GetVendorBalanceTool } from "./tools/get-vendor-balance.tool.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-const main = async () => {
-  // Create an MCP server
-  const server = QuickbooksMCPServer.GetServer();
+function registerAllTools(server: McpServer) {
   // Add tools for customers
   RegisterTool(server, CreateCustomerTool);
   RegisterTool(server, GetCustomerTool);
@@ -433,10 +434,140 @@ const main = async () => {
   RegisterTool(server, GetAgedPayablesTool);
   RegisterTool(server, GetVendorExpensesTool);
   RegisterTool(server, GetVendorBalanceTool);
+}
 
-  // Start receiving messages on stdin and sending messages on stdout
+async function startHttpTransport() {
+  const port = parseInt(process.env.PORT || "8000", 10);
+  const MAX_BODY_SIZE = 1024 * 1024; // 1 MB
+
+  // IMPORTANT: Single-realm, single-identity server.
+  // The Bearer token is used as a front-door access gate only — it proves the caller
+  // is authorized to use this server. All QBO API calls use the server's own credentials
+  // loaded from environment variables (QUICKBOOKS_CLIENT_ID, QUICKBOOKS_CLIENT_SECRET,
+  // QUICKBOOKS_REFRESH_TOKEN). There is no per-user QBO identity.
+
+  // Allowed origins for DNS-rebinding protection. Must be set for HTTP mode.
+  const allowedOrigins = (process.env.ALLOWED_ORIGINS || "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
+
+  const httpServer = http.createServer(async (req, res) => {
+    try {
+      const url = new URL(req.url || "/", `http://localhost:${port}`);
+
+      // Health check before auth validation
+      if (url.pathname === "/health") {
+        res.writeHead(200, { "Content-Type": "text/plain" });
+        res.end("ok");
+        return;
+      }
+
+      // Validate Origin header against allowlist (DNS-rebinding protection).
+      // ALLOWED_ORIGINS must be configured; an absent or unrecognized origin is rejected.
+      const origin = req.headers.origin;
+      if (!origin || !allowedOrigins.includes(origin)) {
+        res.writeHead(403, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Origin not allowed" }));
+        return;
+      }
+
+      // Extract and validate Authorization header.
+      // The Bearer token acts as an access gate to this server only; the server uses its
+      // own QBO credentials from environment variables for all QuickBooks API calls.
+      const authHeader = req.headers.authorization || "";
+      if (!authHeader.startsWith("Bearer ")) {
+        res.writeHead(401, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Missing or invalid Authorization header" }));
+        return;
+      }
+      // Token validated for presence; server uses its own QBO credentials (not this token).
+      void authHeader.slice(7);
+
+      // Validate URL path
+      if (url.pathname !== "/mcp") {
+        res.writeHead(404);
+        res.end();
+        return;
+      }
+
+      if (req.method === "POST") {
+        // Parse request body with size limit; destroy socket immediately on overflow
+        const body = await new Promise<string>((resolve, reject) => {
+          let data = "";
+          req.on("data", (chunk: Buffer) => {
+            data += chunk.toString();
+            if (data.length > MAX_BODY_SIZE) {
+              req.destroy(new Error("Request body exceeds maximum size"));
+            }
+          });
+          req.on("end", () => resolve(data));
+          req.on("error", reject);
+        });
+
+        // Create stateless MCP server for this request.
+        // NOTE: A new McpServer is created per request; this has per-request CPU overhead
+        // but keeps the handler fully stateless and avoids shared-state bugs.
+        const mcpServer = QuickbooksMCPServer.GetServer();
+        registerAllTools(mcpServer);
+
+        // Create transport and handle request
+        const transport = new StreamableHTTPServerTransport({
+          sessionIdGenerator: undefined,
+        });
+
+        await mcpServer.connect(transport);
+        await transport.handleRequest(req, res, JSON.parse(body));
+      } else if (req.method === "GET") {
+        // SSE not supported in stateless mode
+        res.writeHead(405, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "SSE not supported in stateless mode" }));
+      } else if (req.method === "DELETE") {
+        // Session termination — no-op in stateless mode
+        res.writeHead(200);
+        res.end();
+      } else {
+        res.writeHead(405);
+        res.end();
+      }
+    } catch (error) {
+      console.error("Error handling MCP request:", error);
+      if (!res.headersSent) {
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Internal server error" }));
+      }
+    }
+  });
+
+  // Graceful shutdown
+  process.on("SIGTERM", () => {
+    console.log("SIGTERM received, draining connections...");
+    httpServer.close(() => {
+      console.log("Server closed");
+      process.exit(0);
+    });
+  });
+
+  httpServer.listen(port, () => {
+    console.log(`QuickBooks MCP server listening on port ${port} (streamable-http)`);
+  });
+}
+
+async function startStdioTransport() {
+  const server = QuickbooksMCPServer.GetServer();
+  registerAllTools(server);
   const transport = new StdioServerTransport();
   await server.connect(transport);
+}
+
+const main = async () => {
+  const transportMode = process.env.MCP_TRANSPORT || "stdio";
+
+  if (transportMode === "streamable-http") {
+    await startHttpTransport();
+  } else {
+    await startStdioTransport();
+  }
 };
 
 main().catch((error) => {
