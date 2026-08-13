@@ -1,0 +1,16 @@
+node_modules
+dist
+checks
+.git
+.gitignore
+Dockerfile
+.dockerignore
+*.log
+
+# Credentials must not reach the daemon at all. Nothing here is COPYed today,
+# but the build context is sent whole, so excluding them keeps a future
+# `COPY . .` from baking a token into a layer. Mirrors .gitignore.
+.env
+.env.*
+*.pem
+.qbo-tokens.json

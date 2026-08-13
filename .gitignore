@@ -1,16 +1,10 @@
-.qodo
+node_modules/
+dist/
+*.tsbuildinfo
 
-node_modules
-dist
-coverage
-
+# Credentials never belong in this repository. The service receives the Intuit
+# access token per request; it holds no long-lived QuickBooks credentials.
 .env
-.env.local
-.env.*.local
-tokens.json
-
-start.cmd
-
-# Local capture output (may contain real account balances)
-capture-*.txt
-
+.env.*
+*.pem
+.qbo-tokens.json

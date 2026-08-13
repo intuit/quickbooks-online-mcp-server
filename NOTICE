@@ -1,0 +1,139 @@
+This product includes software developed by Intuit Inc.
+
+  Project: quickbooks-online-mcp-server
+  Source:  https://github.com/intuit/quickbooks-online-mcp-server
+  Commit:  099351858ee696dbbeb00dc7ca8e3a86276d86bb  (2026-07-14)
+  Licence: Apache License 2.0 — see src/vendor/LICENSE
+
+Note on upstream licence metadata: the upstream repository's LICENSE file is
+Apache-2.0 while its package.json declares "MIT". Both are permissive; this
+project treats the LICENSE file as authoritative and attributes Apache-2.0.
+
+--------------------------------------------------------------------------------
+What is vendored, verbatim, from the commit above
+--------------------------------------------------------------------------------
+
+  src/vendor/handlers/   141 files   QuickBooks entity operations
+  src/vendor/tools/      141 files   MCP tool definitions and zod schemas
+  src/vendor/helpers/      3 files   search criteria, tool registration (see below)
+  src/vendor/types/        5 files   ambient module declarations
+  src/vendor/LICENSE                 upstream Apache-2.0 licence text
+
+These files are unmodified. Do not edit them. Changes belong in src/runtime/,
+so that re-syncing with upstream stays a copy operation rather than a merge.
+
+--------------------------------------------------------------------------------
+What is deliberately NOT vendored, and why
+--------------------------------------------------------------------------------
+
+  src/index.ts
+      Binds StdioServerTransport and imports all 141 tools at module load.
+      This service speaks Streamable HTTP and exposes a curated allowlist.
+
+  src/auth-server.ts
+      Runs an interactive browser OAuth flow. A server must never do this.
+
+  src/helpers/format-error.ts
+      Reduces every non-2xx response to "Error: Request failed with status code
+      401", discarding the QuickBooks fault body that the axios error carries in
+      response.data. That is precisely where the useful signal lives: 401 for an
+      expired token, 400 with fault code 5010 for a stale SyncToken, 429 for
+      throttling. A replacement occupies the same import path and reads only the
+      status and fault fields — never the error's config, which holds the request
+      headers and therefore the bearer token.
+
+  src/clients/quickbooks-client.ts
+      Reads credentials from process.env at module scope, calls dotenv.config
+      with override on a file relative to the installed module, holds a static
+      singleton, and can start a browser OAuth flow on port 8000. The result is
+      one QuickBooks company per process, which makes multi-tenancy impossible.
+      A replacement occupies the same import path (src/vendor/clients/
+      quickbooks-client.ts) so the 141 vendored handlers need no edits.
+
+Upstream dependencies dropped: dotenv and open (no filesystem credentials, no
+browser), intuit-oauth (token acquisition and refresh belong to the calling API,
+not to this service).
+
+--------------------------------------------------------------------------------
+Vendored tools that are superseded rather than exposed
+--------------------------------------------------------------------------------
+
+These vendored tool files still exist under src/vendor/tools/ and are still
+byte-identical to upstream, but nothing imports them: the allowlist points at a
+replacement in src/runtime/tools/ under the same tool name. OVERRIDDEN_TOOLS in
+src/runtime/tool-allowlist.ts is the machine-checked list, and startup fails if
+one of these names goes missing.
+
+  update_invoice
+      Upstream reads the invoice then posts {...existing, ...patch, sparse:true}.
+      Spreading the whole entity defeats a sparse update: every field is present,
+      so a concurrent edit made between our read and our write is silently
+      reverted. Replaced with a genuinely sparse payload plus one retry on fault
+      5010.
+
+  search_invoices, search_customers, search_items, search_terms,
+  search_tax_codes
+      Two defects. The exposed schema is `criteria: z.any()`, and the runtime
+      schema meant to police it is a zod union whose first member,
+      z.record(z.any()), matches every object — so the ALLOWED_FILTER_FIELDS
+      refinement is unreachable and field names reach the query string
+      unvalidated, where node-quickbooks concatenates them without quoting.
+      Separately, `fetchAll: true` is accepted, and module.query honours it by
+      paging until the company is exhausted and concatenating every record into
+      one array. The replacements enforce closed field enums, cap the page at 100
+      rows and a byte budget, over-fetch exactly one row to report has_more
+      exactly, and cannot express fetchAll at all.
+
+  get_customer, read_item, get_company_info
+      Uncached, and reads are the metered half of Intuit's pricing. The
+      replacements cache per realm with an explicit TTL and entry ceiling.
+      get_company_info additionally dropped its caller-supplied company_id: the
+      company is whichever one the request's grant is for.
+
+  get_invoice_pdf
+      Returns the document base64-encoded inline, or writes it to the filesystem
+      when an environment variable allows it. The replacement fetches once, holds
+      the bytes under a single-use 256-bit handle bound to the realm, and returns
+      a link redeemable through GET /v1/pdf/{realmId}/{handle}.
+
+  delete_invoice
+      Not exposed at all, and not replaced under the same name: cancellation is
+      void_invoice. See the re-sync notes below.
+
+--------------------------------------------------------------------------------
+The multi-tenancy seam
+--------------------------------------------------------------------------------
+
+All 141 vendored handlers reach QuickBooks through exactly two static methods:
+
+  QuickbooksClient.getInstance()          used by all 141
+  QuickbooksClient.getAuthCredentials()   used by create-quickbooks-attachable
+
+Both are re-implemented to resolve the current request's tenant (realm id and
+Intuit access token) from an AsyncLocalStorage context. Every handler therefore
+becomes tenant-aware without a single edit to vendored code, and a call made
+outside a tenant scope fails closed instead of falling back to ambient
+credentials.
+
+--------------------------------------------------------------------------------
+Re-syncing with upstream
+--------------------------------------------------------------------------------
+
+  1. Pick the target upstream commit and record its SHA here.
+  2. Download that commit's tarball.
+  3. Replace src/vendor/{handlers,tools,helpers,types} and src/vendor/LICENSE
+     wholesale. Never merge into them.
+  4. Do not copy index.ts, auth-server.ts, clients/quickbooks-client.ts or
+     helpers/format-error.ts — all four are deliberately replaced (see above).
+  5. Run the type check. Breakage appears as changed call signatures against
+     src/runtime/, which is the intended blast radius.
+  6. Re-read the diff for new tools: newly added tools are not exposed until
+     they are added to the allowlist in src/runtime/.
+  7. Re-check upstream's delete and write handlers for behaviour changes before
+     exposing anything new. As of the pinned commit, delete-quickbooks-invoice
+     attempts a genuine hard delete before falling back to a void, which is why
+     it is not on the allowlist.
+  8. Re-check the superseded tools listed above. If upstream has fixed one of
+     them, the replacement can be retired — but verify the fix rather than
+     assuming it, and remove the name from OVERRIDDEN_TOOLS in the same change so
+     the startup check keeps matching reality.
