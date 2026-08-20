@@ -34,11 +34,229 @@ if (tokenStorePathOverride && !path.isAbsolute(tokenStorePathOverride)) {
 const TOKEN_STORE_PATH =
   tokenStorePathOverride || path.join(__dirname, '..', '..', '.env');
 
+// Intuit's app security requirements mandate that the refresh token be
+// encrypted at rest with a symmetric algorithm (AES preferred) and that the key
+// live in a SEPARATE configuration file from the ciphertext. So the token store
+// holds only QUICKBOOKS_REFRESH_TOKEN_ENC, and the AES-256 key sits beside it in
+// its own 0600 file. Keeping them apart means a leaked token store — the file
+// most likely to be copied, backed up, or accidentally committed — is inert on
+// its own.
+//
+// The encrypted value uses a DISTINCT variable name rather than overloading
+// QUICKBOOKS_REFRESH_TOKEN: a half-migrated store would otherwise feed
+// ciphertext to Intuit (or plaintext to the decryptor) with no way to tell which
+// it was holding.
+const TOKEN_KEY_PATH = path.join(path.dirname(TOKEN_STORE_PATH), '.qbo-token-key');
+const ENC_TOKEN_VAR = 'QUICKBOOKS_REFRESH_TOKEN_ENC';
+const PLAINTEXT_TOKEN_VAR = 'QUICKBOOKS_REFRESH_TOKEN';
+
+// Read the AES key, or undefined when no key file exists yet. Throws on a key
+// file that exists but is unusable — a truncated or corrupted key must be loud,
+// since silently treating it as "absent" would mint a NEW key and orphan the
+// already-encrypted token.
+function loadTokenKey(): Buffer | undefined {
+  let raw: string;
+  try {
+    raw = fs.readFileSync(TOKEN_KEY_PATH, 'utf-8');
+  } catch (e: any) {
+    if (e?.code === 'ENOENT') return undefined;
+    throw e;
+  }
+  const key = Buffer.from(raw.trim(), 'base64');
+  if (key.length !== 32) {
+    throw new Error(
+      `Token encryption key at ${TOKEN_KEY_PATH} is not a 32-byte base64 AES-256 key ` +
+      `(decoded ${key.length} bytes). Refusing to continue — delete the file to mint a ` +
+      `new key, but note that any existing ${ENC_TOKEN_VAR} value becomes unreadable and ` +
+      `the company must be re-authorized.`
+    );
+  }
+  return key;
+}
+
+function getOrCreateTokenKey(): Buffer {
+  const existing = loadTokenKey();
+  if (existing) return existing;
+
+  const key = crypto.randomBytes(32);
+  fs.mkdirSync(path.dirname(TOKEN_KEY_PATH), { recursive: true });
+  try {
+    // 'wx' fails rather than truncating if a sibling process created the key
+    // between our read and this write. Losing that race by clobbering would
+    // leave the winner's ciphertext undecryptable, so the loser adopts the
+    // key that is already on disk instead.
+    fs.writeFileSync(TOKEN_KEY_PATH, key.toString('base64'), { mode: 0o600, flag: 'wx' });
+  } catch (e: any) {
+    if (e?.code === 'EEXIST') {
+      const raced = loadTokenKey();
+      if (raced) return raced;
+    }
+    throw e;
+  }
+  // writeFileSync's mode is masked by the process umask, so restate it.
+  try { fs.chmodSync(TOKEN_KEY_PATH, 0o600); } catch { /* best effort */ }
+  return key;
+}
+
+// AES-256-GCM — authenticated, so a tampered or truncated blob fails to decrypt
+// rather than yielding garbage that we would send to Intuit as a credential.
+// Serialized as base64(iv):base64(authTag):base64(ciphertext); base64 never
+// contains ':', so the delimiter is unambiguous.
+function encryptRefreshToken(plaintext: string): string {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', getOrCreateTokenKey(), iv);
+  const ciphertext = Buffer.concat([cipher.update(plaintext, 'utf-8'), cipher.final()]);
+  return [
+    iv.toString('base64'),
+    cipher.getAuthTag().toString('base64'),
+    ciphertext.toString('base64'),
+  ].join(':');
+}
+
+function decryptRefreshToken(blob: string): string {
+  const key = loadTokenKey();
+  if (!key) {
+    throw new Error(
+      `${ENC_TOKEN_VAR} is set but no encryption key exists at ${TOKEN_KEY_PATH}. ` +
+      `The key file must accompany the token store; without it the token cannot be recovered.`
+    );
+  }
+  const parts = blob.split(':');
+  if (parts.length !== 3) {
+    throw new Error(`${ENC_TOKEN_VAR} is malformed (expected iv:authTag:ciphertext)`);
+  }
+  const [iv, authTag, ciphertext] = parts.map((p) => Buffer.from(p, 'base64'));
+  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+  decipher.setAuthTag(authTag);
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf-8');
+}
+
+// Resolve the usable refresh token from a bag of env-style values, preferring
+// the encrypted form and falling back to a not-yet-migrated plaintext one.
+// A decrypt failure yields undefined rather than throwing: the server then
+// treats the token as absent and takes its normal re-authorize path, which is
+// the only real remedy anyway.
+function resolveRefreshToken(vars: Record<string, string | undefined>): string | undefined {
+  const encrypted = vars[ENC_TOKEN_VAR]?.trim();
+  if (encrypted) {
+    try {
+      return decryptRefreshToken(encrypted) || undefined;
+    } catch (e) {
+      console.error('[qbo-client] Failed to decrypt stored refresh token:', e instanceof Error ? e.message : e);
+      return undefined;
+    }
+  }
+  return vars[PLAINTEXT_TOKEN_VAR]?.trim() || undefined;
+}
+
+// Rewrite the token store, setting `updates` and dropping `removeNames`.
+// Shared by saveTokensToEnv() and the plaintext migration so both get the same
+// atomic-write and symlink-target handling.
+function writeTokenStore(updates: Record<string, string>, removeNames: string[] = []): void {
+  const tokenPath = TOKEN_STORE_PATH;
+  const envContent = fs.existsSync(tokenPath) ? fs.readFileSync(tokenPath, 'utf-8') : '';
+  let envLines = envContent.split('\n');
+
+  for (const [name, value] of Object.entries(updates)) {
+    const index = envLines.findIndex((line) => line.startsWith(`${name}=`));
+    if (index !== -1) {
+      envLines[index] = `${name}=${value}`;
+    } else {
+      envLines.push(`${name}=${value}`);
+    }
+  }
+  if (removeNames.length > 0) {
+    envLines = envLines.filter((line) => !removeNames.some((name) => line.startsWith(`${name}=`)));
+  }
+
+  const newContent = envLines.join('\n');
+
+  if (isSymbolicLink(tokenPath)) {
+    // Write directly through the symlink to the real target. Using
+    // rename on a symlink replaces the link itself rather than writing
+    // through it, which breaks persistent-volume mounts in containers.
+    // If the symlink target doesn't exist yet (fresh PVC mount), resolve
+    // the link target without requiring it to exist, then write directly.
+    let realPath: string;
+    try {
+      realPath = fs.realpathSync(tokenPath);
+    } catch (e: any) {
+      if (e?.code === 'ENOENT') {
+        // Dangling symlink: target doesn't exist yet. readlinkSync returns the
+        // link target as stored, which may be RELATIVE — and a relative path is
+        // resolved against the process cwd, not the link's own directory. Resolve
+        // it against the symlink's directory so we write to the intended location.
+        const linkTarget = fs.readlinkSync(tokenPath);
+        realPath = path.isAbsolute(linkTarget)
+          ? linkTarget
+          : path.resolve(path.dirname(tokenPath), linkTarget);
+      } else {
+        throw e;
+      }
+    }
+    // Deliberate: no temp-file+rename here. Renaming over a symlink replaces the
+    // link itself (the bug this branch fixes), so we write through to the target
+    // directly. This trades atomicity for correct persistent-volume behavior — a
+    // crash mid-write could leave the target .env partially written.
+    fs.writeFileSync(realPath, newContent, { mode: 0o600 });
+  } else {
+    // Atomic write: write to a sibling temp file, then rename. On POSIX
+    // rename is atomic within the same filesystem, so a crash mid-write
+    // cannot leave .env half-written or empty.
+    const tmpPath = `${tokenPath}.tmp.${process.pid}`;
+    try {
+      fs.writeFileSync(tmpPath, newContent, { mode: 0o600 });
+      fs.renameSync(tmpPath, tokenPath);
+    } catch (err) {
+      try { fs.unlinkSync(tmpPath); } catch { /* best effort */ }
+      throw err;
+    }
+  }
+}
+
+function isSymbolicLink(filePath: string): boolean {
+  try {
+    return fs.lstatSync(filePath).isSymbolicLink();
+  } catch {
+    return false;
+  }
+}
+
+// One-shot upgrade for stores written before at-rest encryption existed: read
+// the plaintext token, write it back encrypted, and drop the plaintext line.
+// Best-effort — a read-only or otherwise unwritable store must not stop the
+// server from booting on a token it can still use.
+function migratePlaintextRefreshToken(): void {
+  let stored: Record<string, string>;
+  try {
+    stored = dotenv.parse(fs.readFileSync(TOKEN_STORE_PATH));
+  } catch {
+    return;
+  }
+  if (stored?.[ENC_TOKEN_VAR]?.trim()) return;
+  const plaintext = stored?.[PLAINTEXT_TOKEN_VAR]?.trim();
+  if (!plaintext) return;
+
+  try {
+    const encrypted = encryptRefreshToken(plaintext);
+    writeTokenStore({ [ENC_TOKEN_VAR]: encrypted }, [PLAINTEXT_TOKEN_VAR]);
+    // Keep process.env consistent with what is now on disk, so the resolution
+    // below reads the same state a fresh start would.
+    process.env[ENC_TOKEN_VAR] = encrypted;
+    delete process.env[PLAINTEXT_TOKEN_VAR];
+    console.error('[qbo-client] Migrated plaintext refresh token to encrypted at-rest storage');
+  } catch (e) {
+    console.error('[qbo-client] Failed to migrate plaintext refresh token to encrypted storage:', e);
+  }
+}
+
 // Use override: true so that values from the token store always win over any
 // empty-string placeholders a host app (e.g. Claude Desktop) may inject via
 // its env config. This prevents the server from starting with blank
 // REFRESH_TOKEN / REALM_ID even when the host config has those keys set to "".
 dotenv.config({ path: TOKEN_STORE_PATH, override: true });
+
+migratePlaintextRefreshToken();
 
 // Register once at module level — registering inside startOAuthFlow() would
 // accumulate duplicate handlers on every OAuth call.
@@ -51,7 +269,7 @@ process.on('unhandledRejection', (reason) => {
 
 const client_id = process.env.QUICKBOOKS_CLIENT_ID;
 const client_secret = process.env.QUICKBOOKS_CLIENT_SECRET;
-const refresh_token = process.env.QUICKBOOKS_REFRESH_TOKEN;
+const refresh_token = resolveRefreshToken(process.env);
 const realm_id = process.env.QUICKBOOKS_REALM_ID;
 const environment = process.env.QUICKBOOKS_ENVIRONMENT || 'sandbox';
 // Fix for Issue #5: Use env var with underscore (QUICKBOOKS_REDIRECT_URI)
@@ -134,8 +352,7 @@ export class QuickbooksClient {
       // slice would keep quotes/comments and could poison a valid token with a
       // value that only looks different.
       const parsed = dotenv.parse(fs.readFileSync(TOKEN_STORE_PATH));
-      const value = parsed.QUICKBOOKS_REFRESH_TOKEN?.trim();
-      return value || undefined;
+      return resolveRefreshToken(parsed);
     } catch {
       return undefined;
     }
@@ -290,54 +507,21 @@ export class QuickbooksClient {
       // tokens written into our .env instead of ours.
       const expectedState = crypto.randomBytes(24).toString('hex');
 
-      // Create temporary server for OAuth callback
-      const server = http.createServer(async (req, res) => {
-        console.log(`[auth-server] ${req.method} ${req.url}`);
+      // Intuit's app security requirements forbid returning HTML at a URL that
+      // carries the auth code/state, so /callback only ever 302s to one of these
+      // param-free paths and the HTML is rendered there instead.
+      const PROCESSING_PATH = '/callback/processing';
+      const COMPLETE_PATH = '/callback/complete';
+      const ERROR_PATH = '/callback/error';
 
-        // Respond to anything that isn't /callback so diagnostic probes (curl,
-        // ngrok health checks, favicon requests, etc.) don't hang the server.
-        if (!req.url?.startsWith('/callback')) {
-          res.writeHead(404, { 'Content-Type': 'text/plain' });
-          res.end('Not Found. Waiting for QuickBooks OAuth callback at /callback');
-          return;
-        }
-
-        // Reject any callback whose state doesn't match this run's authorize
-        // request, before touching codeExchangeStarted, so a spoofed/scanner
-        // hit can't consume the one-shot exchange lock and lock out the real
-        // callback that follows it.
-        const incomingState = new URL(req.url, `http://localhost:${port}`).searchParams.get('state');
-        if (incomingState !== expectedState) {
-          console.log(`[auth-server] Rejected callback with mismatched state (got: ${incomingState ?? 'none'})`);
-          res.writeHead(400, { 'Content-Type': 'text/plain' });
-          res.end('Invalid or missing state parameter.');
-          return;
-        }
-
-        // A duplicate callback for the same code must NOT be exchanged again, or
-        // Intuit revokes the token minted by the first hit. `codeExchangeStarted`
-        // is set synchronously before the first `await`, so the second request's
-        // handler observes it and bails out here.
-        if (codeExchangeStarted) {
-          res.writeHead(200, { 'Content-Type': 'text/html' });
-          res.end('<html><body style="font-family:Arial;text-align:center;margin-top:20vh"><h2>Processing… you can close this window.</h2></body></html>');
-          return;
-        }
-        codeExchangeStarted = true;
-
-        {
-          try {
-            const response = await flowClient.createToken(req.url);
-            const tokens = response.token;
-
-            // Save tokens
-            this.refreshToken = tokens.refresh_token;
-            this.realmId = tokens.realmId;
-            this.saveTokensToEnv();
-
-            // Send success response
-            res.writeHead(200, { 'Content-Type': 'text/html' });
-            res.end(`
+      const resultPages: Record<string, { status: number; html: string }> = {
+        [PROCESSING_PATH]: {
+          status: 200,
+          html: '<html><body style="font-family:Arial;text-align:center;margin-top:20vh"><h2>Processing… you can close this window.</h2></body></html>',
+        },
+        [COMPLETE_PATH]: {
+          status: 200,
+          html: `
               <html>
                 <body style="
                   display: flex;
@@ -353,18 +537,11 @@ export class QuickbooksClient {
                   <p>You can close this window now.</p>
                 </body>
               </html>
-            `);
-
-            // Close server after a short delay
-            setTimeout(() => {
-              server.close();
-              this.isAuthenticating = false;
-              resolve();
-            }, 1000);
-          } catch (error) {
-            console.error('Error during token creation:', error);
-            res.writeHead(500, { 'Content-Type': 'text/html' });
-            res.end(`
+            `,
+        },
+        [ERROR_PATH]: {
+          status: 500,
+          html: `
               <html>
                 <body style="
                   display: flex;
@@ -380,9 +557,109 @@ export class QuickbooksClient {
                   <p>Please check the console for more details.</p>
                 </body>
               </html>
-            `);
-            this.isAuthenticating = false;
-            reject(error);
+            `,
+        },
+      };
+
+      // Only pages the flow has actually reached are servable, so a stray probe
+      // can't render "success" before the exchange happened.
+      const servablePages = new Set<string>();
+
+      let settled = false;
+      const shutdown = () => {
+        if (settled) return;
+        settled = true;
+        server.close();
+        this.isAuthenticating = false;
+        resolve();
+      };
+
+      // Held until the browser has fetched the error page, so rejecting (which
+      // exits the CLI) doesn't race the redirect the user is following.
+      let pendingError: unknown;
+      const fail = () => {
+        if (settled) return;
+        settled = true;
+        this.isAuthenticating = false;
+        reject(pendingError);
+      };
+
+      // Create temporary server for OAuth callback
+      const server = http.createServer(async (req, res) => {
+        console.log(`[auth-server] ${req.method} ${req.url}`);
+
+        const requestUrl = req.url ?? '/';
+        const pathname = new URL(requestUrl, `http://localhost:${port}`).pathname;
+
+        const page = resultPages[pathname];
+        if (page && servablePages.has(pathname)) {
+          res.writeHead(page.status, { 'Content-Type': 'text/html' });
+          res.end(page.html);
+          if (pathname === COMPLETE_PATH) {
+            setTimeout(shutdown, 1000);
+          } else if (pathname === ERROR_PATH) {
+            fail();
+          }
+          return;
+        }
+
+        // Respond to anything that isn't /callback so diagnostic probes (curl,
+        // ngrok health checks, favicon requests, etc.) don't hang the server.
+        if (pathname !== '/callback') {
+          res.writeHead(404, { 'Content-Type': 'text/plain' });
+          res.end('Not Found. Waiting for QuickBooks OAuth callback at /callback');
+          return;
+        }
+
+        // Reject any callback whose state doesn't match this run's authorize
+        // request, before touching codeExchangeStarted, so a spoofed/scanner
+        // hit can't consume the one-shot exchange lock and lock out the real
+        // callback that follows it.
+        const incomingState = new URL(requestUrl, `http://localhost:${port}`).searchParams.get('state');
+        if (incomingState !== expectedState) {
+          console.log(`[auth-server] Rejected callback with mismatched state (got: ${incomingState ?? 'none'})`);
+          res.writeHead(400, { 'Content-Type': 'text/plain' });
+          res.end('Invalid or missing state parameter.');
+          return;
+        }
+
+        // A duplicate callback for the same code must NOT be exchanged again, or
+        // Intuit revokes the token minted by the first hit. `codeExchangeStarted`
+        // is set synchronously before the first `await`, so the second request's
+        // handler observes it and bails out here.
+        if (codeExchangeStarted) {
+          servablePages.add(PROCESSING_PATH);
+          res.writeHead(302, { Location: PROCESSING_PATH });
+          res.end();
+          return;
+        }
+        codeExchangeStarted = true;
+
+        {
+          try {
+            const response = await flowClient.createToken(requestUrl);
+            const tokens = response.token;
+
+            // Save tokens
+            this.refreshToken = tokens.refresh_token;
+            this.realmId = tokens.realmId;
+            this.saveTokensToEnv();
+
+            // Send success response
+            servablePages.add(COMPLETE_PATH);
+            res.writeHead(302, { Location: COMPLETE_PATH });
+            res.end();
+
+            // Close server after a short delay, whether or not the browser
+            // follows the redirect to the completion page.
+            setTimeout(shutdown, 5000);
+          } catch (error) {
+            console.error('Error during token creation:', error);
+            pendingError = error;
+            servablePages.add(ERROR_PATH);
+            res.writeHead(302, { Location: ERROR_PATH });
+            res.end();
+            setTimeout(fail, 5000);
           }
         }
       });
@@ -422,74 +699,21 @@ export class QuickbooksClient {
   }
 
   private saveTokensToEnv(): void {
-    const tokenPath = TOKEN_STORE_PATH;
-    const envContent = fs.existsSync(tokenPath) ? fs.readFileSync(tokenPath, 'utf-8') : '';
-    const envLines = envContent.split('\n');
+    const updates: Record<string, string> = {};
+    // Always drop the legacy plaintext line alongside an encrypted write, so a
+    // store that predates encryption can never keep serving a stale plaintext
+    // token that resolveRefreshToken() would fall back to.
+    const removeNames: string[] = [];
 
-    const updateEnvVar = (name: string, value: string) => {
-      const index = envLines.findIndex(line => line.startsWith(`${name}=`));
-      if (index !== -1) {
-        envLines[index] = `${name}=${value}`;
-      } else {
-        envLines.push(`${name}=${value}`);
-      }
-    };
-
-    if (this.refreshToken) updateEnvVar('QUICKBOOKS_REFRESH_TOKEN', this.refreshToken);
-    if (this.realmId) updateEnvVar('QUICKBOOKS_REALM_ID', this.realmId);
-
-    const newContent = envLines.join('\n');
-    const isSymlink = this.isSymbolicLink(tokenPath);
-
-    if (isSymlink) {
-      // Write directly through the symlink to the real target. Using
-      // rename on a symlink replaces the link itself rather than writing
-      // through it, which breaks persistent-volume mounts in containers.
-      // If the symlink target doesn't exist yet (fresh PVC mount), resolve
-      // the link target without requiring it to exist, then write directly.
-      let realPath: string;
-      try {
-        realPath = fs.realpathSync(tokenPath);
-      } catch (e: any) {
-        if (e?.code === 'ENOENT') {
-          // Dangling symlink: target doesn't exist yet. readlinkSync returns the
-          // link target as stored, which may be RELATIVE — and a relative path is
-          // resolved against the process cwd, not the link's own directory. Resolve
-          // it against the symlink's directory so we write to the intended location.
-          const linkTarget = fs.readlinkSync(tokenPath);
-          realPath = path.isAbsolute(linkTarget)
-            ? linkTarget
-            : path.resolve(path.dirname(tokenPath), linkTarget);
-        } else {
-          throw e;
-        }
-      }
-      // Deliberate: no temp-file+rename here. Renaming over a symlink replaces the
-      // link itself (the bug this branch fixes), so we write through to the target
-      // directly. This trades atomicity for correct persistent-volume behavior — a
-      // crash mid-write could leave the target .env partially written.
-      fs.writeFileSync(realPath, newContent, { mode: 0o600 });
-    } else {
-      // Atomic write: write to a sibling temp file, then rename. On POSIX
-      // rename is atomic within the same filesystem, so a crash mid-write
-      // cannot leave .env half-written or empty.
-      const tmpPath = `${tokenPath}.tmp.${process.pid}`;
-      try {
-        fs.writeFileSync(tmpPath, newContent, { mode: 0o600 });
-        fs.renameSync(tmpPath, tokenPath);
-      } catch (err) {
-        try { fs.unlinkSync(tmpPath); } catch { /* best effort */ }
-        throw err;
-      }
+    if (this.refreshToken) {
+      updates[ENC_TOKEN_VAR] = encryptRefreshToken(this.refreshToken);
+      removeNames.push(PLAINTEXT_TOKEN_VAR);
     }
-  }
+    // realmId is a company identifier, not a secret — Intuit's encryption
+    // requirement covers the refresh token only, so this stays readable.
+    if (this.realmId) updates['QUICKBOOKS_REALM_ID'] = this.realmId;
 
-  private isSymbolicLink(filePath: string): boolean {
-    try {
-      return fs.lstatSync(filePath).isSymbolicLink();
-    } catch {
-      return false;
-    }
+    writeTokenStore(updates, removeNames);
   }
 
   async refreshAccessToken() {
