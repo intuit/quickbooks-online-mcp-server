@@ -27,6 +27,15 @@ const STRIP_FROM_CURRENT = [
 export interface ReadMergeWriteOptions {
   /** Additional fields to strip from the fetched entity before merging. */
   extraStrip?: string[];
+  /**
+   * Fields to KEEP from the fetched entity that STRIP_FROM_CURRENT would
+   * otherwise drop. For entities where an "amount" is an input rather than a
+   * derived total — Payment.TotalAmt is the money actually received, not a sum
+   * QBO should recompute — dropping it either fails the update or lets QBO
+   * re-derive it from the lines, silently changing the recorded amount. The
+   * caller's own value still wins when supplied.
+   */
+  keepFromCurrent?: string[];
 }
 
 /**
@@ -42,7 +51,10 @@ export async function mergeForFullUpdate(
   if (!id) throw new Error("read-merge-write update requires Id");
   const current = await getFn(String(id));
   const base: Record<string, any> = { ...(current ?? {}) };
-  for (const field of STRIP_FROM_CURRENT) delete base[field];
+  const keep = new Set(options.keepFromCurrent ?? []);
+  for (const field of STRIP_FROM_CURRENT) {
+    if (!keep.has(field)) delete base[field];
+  }
   for (const field of options.extraStrip ?? []) delete base[field];
   return { ...base, ...changes, Id: String(id), sparse: false };
 }

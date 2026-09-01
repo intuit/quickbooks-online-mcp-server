@@ -21,6 +21,7 @@ const { updateQuickbooksPurchase } = await import('../../../src/handlers/update-
 const { normalizeGlobalTaxCalculation } = await import('../../../src/helpers/global-tax');
 const { mergeForFullUpdate } = await import('../../../src/helpers/read-merge-write');
 const { CreateBillTool } = await import('../../../src/tools/create-bill.tool');
+const { UpdatePaymentTool } = await import('../../../src/tools/update-payment.tool');
 
 const capture = (mock: any) => (mock.mock.calls[0] as any)[0];
 
@@ -95,6 +96,98 @@ describe('Tax forwarding and update integrity', () => {
       const override = { TotalTax: 7.42, TaxLine: [{ Amount: 7.42, DetailType: 'TaxLineDetail', TaxLineDetail: { TaxRateRef: { value: '14' }, PercentBased: false } }] };
       await createQuickbooksBill({ VendorRef: { value: '41' }, Line: [], TxnTaxDetail: override });
       expect(capture(mockQuickBooksInstance.createBill).TxnTaxDetail).toEqual(override);
+    });
+  });
+
+  describe('update_payment can apply a payment to a transaction (Payment.Line)', () => {
+    it('maps line/linked_txn to Payment.Line[].LinkedTxn like create_payment does', async () => {
+      mockQuickBooksInstance.getPayment.mockImplementation((_id: any, cb: any) =>
+        cb(null, { Id: '9', SyncToken: '0', CustomerRef: { value: '3' }, TotalAmt: 500, UnappliedAmt: 500 })
+      );
+      mockQuickBooksInstance.updatePayment.mockImplementation((p: any, cb: any) => cb(null, {}));
+
+      await updateQuickbooksPayment({
+        id: '9',
+        sync_token: '0',
+        line: [{ amount: 500, linked_txn: [{ txn_id: '77', txn_type: 'Invoice' }] }],
+      });
+
+      const sent = capture(mockQuickBooksInstance.updatePayment);
+      expect(sent.Line).toEqual([
+        { Amount: 500, LinkedTxn: [{ TxnId: '77', TxnType: 'Invoice' }] },
+      ]);
+      expect(sent.sparse).toBe(false);
+    });
+
+    it('REPLACES existing applications when line is supplied (documented QBO semantics)', async () => {
+      mockQuickBooksInstance.getPayment.mockImplementation((_id: any, cb: any) =>
+        cb(null, {
+          Id: '9',
+          SyncToken: '0',
+          TotalAmt: 500,
+          Line: [{ Amount: 200, LinkedTxn: [{ TxnId: '11', TxnType: 'Invoice' }] }],
+        })
+      );
+      mockQuickBooksInstance.updatePayment.mockImplementation((p: any, cb: any) => cb(null, {}));
+
+      await updateQuickbooksPayment({
+        id: '9',
+        sync_token: '0',
+        line: [{ amount: 500, linked_txn: [{ txn_id: '77', txn_type: 'Invoice' }] }],
+      });
+
+      const sent = capture(mockQuickBooksInstance.updatePayment);
+      expect(sent.Line).toHaveLength(1);
+      expect(sent.Line[0].LinkedTxn[0].TxnId).toBe('77'); // caller's set wins wholesale
+    });
+
+    it('leaves existing applications untouched when line is omitted', async () => {
+      const existing = [{ Amount: 200, LinkedTxn: [{ TxnId: '11', TxnType: 'Invoice' }] }];
+      mockQuickBooksInstance.getPayment.mockImplementation((_id: any, cb: any) =>
+        cb(null, { Id: '9', SyncToken: '0', TotalAmt: 500, Line: existing })
+      );
+      mockQuickBooksInstance.updatePayment.mockImplementation((p: any, cb: any) => cb(null, {}));
+
+      await updateQuickbooksPayment({ id: '9', sync_token: '0', private_note: 'note only' });
+
+      expect(capture(mockQuickBooksInstance.updatePayment).Line).toEqual(existing);
+    });
+
+    it('preserves TotalAmt so applying lines cannot silently rewrite the payment amount', async () => {
+      mockQuickBooksInstance.getPayment.mockImplementation((_id: any, cb: any) =>
+        cb(null, { Id: '9', SyncToken: '0', TotalAmt: 500, UnappliedAmt: 500 })
+      );
+      mockQuickBooksInstance.updatePayment.mockImplementation((p: any, cb: any) => cb(null, {}));
+
+      await updateQuickbooksPayment({
+        id: '9',
+        sync_token: '0',
+        line: [{ amount: 300, linked_txn: [{ txn_id: '77', txn_type: 'Invoice' }] }],
+      });
+
+      // Without this, TotalAmt is stripped as a "derived" field and QBO would
+      // re-derive 300 from the line — turning a $500 payment into a $300 one.
+      expect(capture(mockQuickBooksInstance.updatePayment).TotalAmt).toBe(500);
+    });
+
+    it('still lets an explicit total_amt override the stored value', async () => {
+      mockQuickBooksInstance.getPayment.mockImplementation((_id: any, cb: any) =>
+        cb(null, { Id: '9', SyncToken: '0', TotalAmt: 500 })
+      );
+      mockQuickBooksInstance.updatePayment.mockImplementation((p: any, cb: any) => cb(null, {}));
+
+      await updateQuickbooksPayment({ id: '9', sync_token: '0', total_amt: 750 });
+
+      expect(capture(mockQuickBooksInstance.updatePayment).TotalAmt).toBe(750);
+    });
+
+    it('(schema) update_payment declares line so validation cannot strip it', () => {
+      const parsed = (UpdatePaymentTool.schema as any).parse({
+        id: '9',
+        sync_token: '0',
+        line: [{ amount: 500, linked_txn: [{ txn_id: '77', txn_type: 'Invoice' }] }],
+      });
+      expect(parsed.line[0].linked_txn[0].txn_id).toBe('77');
     });
   });
 
