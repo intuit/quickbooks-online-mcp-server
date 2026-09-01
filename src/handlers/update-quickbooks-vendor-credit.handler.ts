@@ -6,6 +6,7 @@ import {
   GlobalTaxCalculation,
   VendorCreditLineItemInput,
 } from "./create-quickbooks-vendor-credit.handler.js";
+import { mergeForFullUpdate, promisifyGetter } from "../helpers/read-merge-write.js";
 
 export interface UpdateVendorCreditInput {
   id: string;
@@ -20,39 +21,17 @@ export async function updateQuickbooksVendorCredit(data: UpdateVendorCreditInput
   try {
     const quickbooks = await QuickbooksClient.getInstance();
 
-    let payload: any;
-    if (data.line_items) {
-      // Replacing lines requires a FULL update: QBO rejects sparse updates
-      // that carry a Line array ("Required parameter VendorRef is missing",
-      // error 2020). Read the current entity and merge so every field the
-      // caller didn't override is preserved, then let QBO recompute
-      // TxnTaxDetail from the new lines' tax codes.
-      const existing: any = await new Promise((resolve, reject) => {
-        (quickbooks as any).getVendorCredit(data.id, (err: any, found: any) =>
-          err ? reject(err) : resolve(found)
-        );
-      });
-      const {
-        TxnTaxDetail: _txnTax, // recomputed by QBO from the new lines
-        TotalAmt: _totalAmt, // derived — recomputed by QBO
-        Balance: _balance, // derived — recomputed by QBO
-        MetaData: _metaData, // read-only
-        ...base
-      } = existing;
-      payload = {
-        ...base,
-        Id: data.id,
-        SyncToken: data.sync_token,
-        sparse: false,
-        Line: data.line_items.map(buildVendorCreditLine),
-      };
-    } else {
-      payload = { Id: data.id, SyncToken: data.sync_token, sparse: true };
-    }
-
-    if (data.vendor_ref) payload.VendorRef = { value: data.vendor_ref };
-    if (data.private_note) payload.PrivateNote = data.private_note;
-    if (data.global_tax_calculation) payload.GlobalTaxCalculation = data.global_tax_calculation;
+    // Read-merge-write for EVERY update (line-replacing or not): QBO rejects
+    // sparse updates that carry a Line array (error 2020), and sparse
+    // semantics proved unreliable for other fields too. Fetch the current
+    // entity, merge changes over it, send a full payload; QBO recomputes
+    // TxnTaxDetail from the merged lines' tax codes.
+    const changes: any = { Id: data.id, SyncToken: data.sync_token };
+    if (data.line_items) changes.Line = data.line_items.map(buildVendorCreditLine);
+    if (data.vendor_ref) changes.VendorRef = { value: data.vendor_ref };
+    if (data.private_note) changes.PrivateNote = data.private_note;
+    if (data.global_tax_calculation) changes.GlobalTaxCalculation = data.global_tax_calculation;
+    const payload = await mergeForFullUpdate(promisifyGetter(quickbooks, "getVendorCredit"), changes);
 
     return new Promise((resolve) => {
       (quickbooks as any).updateVendorCredit(payload, (err: any, updated: any) => {
