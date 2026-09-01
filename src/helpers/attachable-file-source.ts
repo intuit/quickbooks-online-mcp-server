@@ -104,6 +104,15 @@ function serverRootReal(): Promise<string> {
 }
 
 async function deniedReason(realPath: string): Promise<string | null> {
+  // Server-root check first: when the install tree itself lives under a
+  // dot-directory (e.g. a git worktree in .claude/worktrees/), every file in
+  // it would otherwise trip the dot-segment rule and mask this more specific
+  // reason.
+  const rootReal = await serverRootReal();
+  const rel = path.relative(normalizeForCompare(rootReal), normalizeForCompare(realPath));
+  if (!rel.startsWith("..") && !path.isAbsolute(rel)) {
+    return "files inside the MCP server's own directory are not attachable";
+  }
   const segments = realPath.split(path.sep);
   if (segments.some((s) => s.startsWith(".") && s !== "." && s !== "..")) {
     return "dotfiles and dot-directories are not attachable";
@@ -111,11 +120,6 @@ async function deniedReason(realPath: string): Promise<string | null> {
   const base = path.basename(realPath).toLowerCase();
   if (base.endsWith(".env") || DENIED_BASENAMES.has(base)) {
     return "credential files are not attachable";
-  }
-  const rootReal = await serverRootReal();
-  const rel = path.relative(normalizeForCompare(rootReal), normalizeForCompare(realPath));
-  if (!rel.startsWith("..") && !path.isAbsolute(rel)) {
-    return "files inside the MCP server's own directory are not attachable";
   }
   return null;
 }
