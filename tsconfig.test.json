@@ -2,7 +2,15 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "module": "ESNext",
-    "moduleResolution": "Node",
+    // "Bundler", not "Node": @modelcontextprotocol/sdk ships only an "exports" map
+    // (there is no physical server/ directory), and so does zod for its v3 / v4/core
+    // subpaths. Node10 resolution ignores "exports", so the SDK's ToolCallback
+    // conditional — which since 1.30.0 branches on Zod v3 *and* v4 schema types —
+    // resolves against degraded types and blows past the instantiation depth limit
+    // (TS2589 on server.tool()). "Bundler" honours "exports" like the NodeNext build
+    // config does, while still allowing the extensionless relative imports the tests
+    // use, which NodeNext would reject.
+    "moduleResolution": "Bundler",
     "types": ["jest", "node"],
     "noEmit": true
   },

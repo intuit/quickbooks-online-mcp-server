@@ -45,5 +45,11 @@
         "typescript": "^5.8.2",
         "typescript-eslint": "^8.26.1",
         "zod": "4.3.6"
+    },
+    "overrides": {
+        "node-quickbooks": {
+            "fast-xml-parser": "^5.10.1",
+            "underscore": "^1.13.8"
+        }
     }
 }

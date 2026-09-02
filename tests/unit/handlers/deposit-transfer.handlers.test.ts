@@ -117,6 +117,9 @@ describe('Deposit and Transfer Handlers', () => {
     });
 
     it('should update a deposit', async () => {
+      mockQuickBooksInstance.getDeposit.mockImplementation((_id: any, cb: any) =>
+        cb(null, { Id: '1', SyncToken: '0', DepositToAccountRef: { value: '35' }, Line: [] })
+      );
       mockQuickBooksInstance.updateDeposit.mockImplementation((payload: any, cb: any) => cb(null, {}));
 
       const result = await updateQuickbooksDeposit({ id: '1', sync_token: '0' });
@@ -125,6 +128,9 @@ describe('Deposit and Transfer Handlers', () => {
     });
 
     it('should update a deposit with all optional fields', async () => {
+      mockQuickBooksInstance.getDeposit.mockImplementation((_id: any, cb: any) =>
+        cb(null, { Id: '1', SyncToken: '0', DepositToAccountRef: { value: '35' }, Line: [] })
+      );
       mockQuickBooksInstance.updateDeposit.mockImplementation((payload: any, cb: any) => cb(null, {}));
 
       const result = await updateQuickbooksDeposit({
@@ -136,6 +142,40 @@ describe('Deposit and Transfer Handlers', () => {
       expect(result.isError).toBe(false);
     });
 
+    it('should fetch the current deposit and send a full (non-sparse) object, preserving fields the caller did not touch', async () => {
+      // Regression guard: the old handler sent { Id, SyncToken, sparse: true }
+      // and nothing else, which QBO rejects with "DepositToAccountRef missing"
+      // on every single call, since Deposit doesn't honor sparse=true the way
+      // Purchase does. The fix fetches the current record and merges onto it.
+      mockQuickBooksInstance.getDeposit.mockImplementation((id: any, cb: any) => {
+        expect(id).toBe('42');
+        cb(null, {
+          Id: '42',
+          SyncToken: '3',
+          DepositToAccountRef: { value: '35', name: 'Checking' },
+          Line: [{ Id: '1', Amount: 100, DetailType: 'DepositLineDetail', DepositLineDetail: {} }],
+        });
+      });
+
+      let captured: any;
+      mockQuickBooksInstance.updateDeposit.mockImplementation((payload: any, cb: any) => {
+        captured = payload;
+        cb(null, payload);
+      });
+
+      const result = await updateQuickbooksDeposit({ id: '42', sync_token: '4', private_note: 'note' });
+
+      expect(result.isError).toBe(false);
+      // Untouched fields carried over from the fetched record.
+      expect(captured.DepositToAccountRef).toEqual({ value: '35', name: 'Checking' });
+      expect(captured.Line).toEqual([{ Id: '1', Amount: 100, DetailType: 'DepositLineDetail', DepositLineDetail: {} }]);
+      // The caller-supplied sync_token wins over the one on the fetched record.
+      expect(captured.SyncToken).toBe('4');
+      expect(captured.PrivateNote).toBe('note');
+      // No sparse flag — QBO does not honor sparse=true for Deposit.
+      expect(captured.sparse).toBeUndefined();
+    });
+
     it('should update a deposit - authentication error', async () => {
       (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
@@ -145,7 +185,21 @@ describe('Deposit and Transfer Handlers', () => {
       expect(result.error).toContain('Auth failed');
     });
 
+    it('should update a deposit - error fetching the current deposit', async () => {
+      mockQuickBooksInstance.getDeposit.mockImplementation((_id: any, cb: any) =>
+        cb(new Error('Not found'), null)
+      );
+
+      const result = await updateQuickbooksDeposit({ id: '999', sync_token: '0' });
+
+      expect(result.isError).toBe(true);
+      expect(result.error).toContain('Not found');
+    });
+
     it('should update a deposit - API error', async () => {
+      mockQuickBooksInstance.getDeposit.mockImplementation((_id: any, cb: any) =>
+        cb(null, { Id: '1', SyncToken: '0', DepositToAccountRef: { value: '35' }, Line: [] })
+      );
       mockQuickBooksInstance.updateDeposit.mockImplementation((payload: any, cb: any) =>
         cb(new Error('Update failed'), null)
       );

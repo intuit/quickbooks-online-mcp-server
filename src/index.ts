@@ -177,6 +177,9 @@ import { SearchTaxAgenciesTool } from "./tools/search-tax-agencies.tool.js";
 import { GetCompanyInfoTool } from "./tools/get-company-info.tool.js";
 import { UpdateCompanyInfoTool } from "./tools/update-company-info.tool.js";
 
+// Preferences tools
+import { GetPreferencesTool } from "./tools/get-preferences.tool.js";
+
 // Attachable tools
 import { CreateAttachableTool } from "./tools/create-attachable.tool.js";
 import { GetAttachableTool } from "./tools/get-attachable.tool.js";
@@ -403,6 +406,9 @@ const main = async () => {
   // Add tools for company info
   RegisterTool(server, GetCompanyInfoTool);
   RegisterTool(server, UpdateCompanyInfoTool);
+
+  // Add tools for preferences
+  RegisterTool(server, GetPreferencesTool);
 
   // Add tools for attachables
   RegisterTool(server, CreateAttachableTool);

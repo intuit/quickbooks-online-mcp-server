@@ -3,6 +3,7 @@ import QuickBooks from "node-quickbooks";
 import OAuthClient from "intuit-oauth";
 import { AsyncLocalStorage } from "node:async_hooks";
 import http from "http";
+import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -10,19 +11,35 @@ import open from "open";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Resolve .env relative to the installed module (../../.env from dist/clients/).
-// This matters when the MCP server is spawned by a host (e.g. Claude Desktop,
-// Claude Code, Cursor) whose working directory is not the project root —
-// without this, dotenv silently finds nothing and startup fails.
+// Where the server reads .env at startup and persists rotated refresh tokens.
+// Defaults to the installed module's ../../.env (dist/clients/ -> package root)
+// so a host-spawned server with an unrelated cwd still finds it. Override with
+// QUICKBOOKS_TOKEN_STORE_PATH (an absolute path) to point at a WRITABLE location.
+// This is required whenever the module itself lives on a read-only filesystem —
+// containers with a read-only root, Nix/immutable installs (see #63, where the
+// default path can't be written) — and lets a per-tenant host keep each
+// connection's rotated token in its own isolated path.
 //
-// Use override: true so that values from .env always win over any empty-string
-// placeholders a host app (e.g. Claude Desktop) may inject via its env config.
-// This prevents the server from starting with blank REFRESH_TOKEN / REALM_ID
-// even when the host config has those keys set to "".
-dotenv.config({
-  path: path.join(__dirname, "..", "..", ".env"),
-  override: true,
-});
+// NOTE: this value is resolved BEFORE dotenv loads the file below, so the
+// override only takes effect when set in the host process env (e.g. the MCP
+// server config's env block) — setting it inside .env has no effect. It must
+// be absolute: a relative path would resolve against the host app's working
+// directory, which is unpredictable (the exact failure the module-relative
+// default exists to avoid).
+const tokenStorePathOverride = process.env.QUICKBOOKS_TOKEN_STORE_PATH?.trim();
+if (tokenStorePathOverride && !path.isAbsolute(tokenStorePathOverride)) {
+  throw Error(
+    `QUICKBOOKS_TOKEN_STORE_PATH must be an absolute path, got "${tokenStorePathOverride}"`,
+  );
+}
+const TOKEN_STORE_PATH =
+  tokenStorePathOverride || path.join(__dirname, "..", "..", ".env");
+
+// Use override: true so that values from the token store always win over any
+// empty-string placeholders a host app (e.g. Claude Desktop) may inject via
+// its env config. This prevents the server from starting with blank
+// REFRESH_TOKEN / REALM_ID even when the host config has those keys set to "".
+dotenv.config({ path: TOKEN_STORE_PATH, override: true });
 
 // Register once at module level — registering inside startOAuthFlow() would
 // accumulate duplicate handlers on every OAuth call.
@@ -126,8 +143,143 @@ export class QuickbooksClient {
     );
   }
 
+  // Read the refresh token currently persisted in the token store (.env by
+  // default, or QUICKBOOKS_TOKEN_STORE_PATH). Used to pick up a rotation
+  // performed by a SIBLING process before we attempt our own refresh: a host
+  // may spawn this server more than once against the same store (e.g.
+  // Claude Desktop and Claude Code simultaneously), and Intuit invalidates the
+  // previous refresh token on every rotation — so a token loaded into memory at
+  // startup can be silently superseded on disk by another process.
+  private readPersistedRefreshToken(): string | undefined {
+    try {
+      // Parse with dotenv itself so the value is normalized identically to how
+      // the in-memory token was loaded at startup — surrounding quotes stripped,
+      // inline comments removed, optional `export ` prefix handled. A naive
+      // slice would keep quotes/comments and could poison a valid token with a
+      // value that only looks different.
+      const parsed = dotenv.parse(fs.readFileSync(TOKEN_STORE_PATH));
+      const value = parsed.QUICKBOOKS_REFRESH_TOKEN?.trim();
+      return value || undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  // Distinguish a genuinely dead refresh token (revoked, expired, or rotated
+  // out — Intuit answers HTTP 400 invalid_grant, or 401) from a transient
+  // failure (5xx, 429, network timeout). Only the former warrants telling the
+  // operator to re-authorize; a transient failure must stay retryable so it
+  // self-heals. Conservative: anything not clearly an auth-invalidation is
+  // treated as transient, so an outage never produces a false "re-authorize"
+  // alarm.
+  //
+  // NOTE on shape: intuit-oauth 4.x does NOT surface invalid_grant in a tidy
+  // field. Verified empirically against v4.2.1 — on a rejected refresh token
+  // the error's message/error is the axios string "Request failed with status
+  // code 400", error_description is "", authResponse.response is "" and
+  // authResponse.status is a function returning undefined. So the reliably
+  // available signal is the HTTP status embedded in that message; we also check
+  // any structured fields in case a future version populates them.
+  private isAuthInvalidation(error: unknown): boolean {
+    // Walk the error's cause chain (bounded) so a wrapped error still classifies
+    // correctly regardless of how many layers deep the real signal sits — our
+    // own wrapper adds one level, and some axios versions attach a `cause`.
+    let cur: unknown = error;
+    for (let depth = 0; depth < 4 && cur != null; depth++) {
+      if (this.classifyOneError(cur)) return true;
+      cur = (cur as { cause?: unknown }).cause;
+    }
+    return false;
+  }
+
+  // Classify a SINGLE error object (no cause traversal — the caller walks the
+  // chain). Returns true only for a genuine auth-invalidation.
+  private classifyOneError(raw: unknown): boolean {
+    const asObj = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : null;
+
+    // Explicit OAuth error fields, when populated.
+    const errField = String(asObj?.error ?? "").toLowerCase();
+    const errDesc = String(asObj?.error_description ?? "").toLowerCase();
+    if (errField.includes("invalid_grant") || errDesc.includes("invalid_grant")) return true;
+
+    // Numeric HTTP status from whichever field carries it (incl. intuit-oauth's
+    // authResponse.status() accessor).
+    let status: number | undefined;
+    const ar = asObj?.authResponse as { status?: unknown; response?: { status?: unknown } } | undefined;
+    if (ar) {
+      if (typeof ar.status === "function") {
+        try {
+          const s = Number((ar.status as () => unknown)());
+          if (!Number.isNaN(s)) status = s;
+        } catch {
+          /* accessor threw — fall through to message parsing */
+        }
+      } else if (typeof ar.status === "number") {
+        status = ar.status;
+      }
+      if (status === undefined && ar.response && typeof ar.response.status === "number") {
+        status = ar.response.status;
+      }
+    }
+    if (status === undefined && typeof asObj?.status === "number") status = asObj.status as number;
+
+    // Fallback: parse the axios-style message ("Request failed with status code
+    // NNN") — the only signal intuit-oauth 4.x reliably exposes on invalid_grant
+    // (its response body is discarded). The \b prevents a 4-digit number from
+    // matching its 3-digit prefix.
+    const message = (raw instanceof Error ? raw.message : String(raw ?? "")).toLowerCase();
+    if (message.includes("invalid_grant")) return true;
+    if (status === undefined) {
+      const m = message.match(/status code (\d{3})\b/);
+      if (m) status = Number(m[1]);
+    }
+
+    return status === 400 || status === 401;
+  }
+
+  // Single refresh network call. Returns the widened token object — the
+  // intuit-oauth type declarations omit refresh_token, x_refresh_token_expires_in,
+  // token_type, realmId, etc.
+  private async performRefresh(refreshToken: string): Promise<{
+    access_token: string;
+    expires_in?: number;
+    refresh_token?: string;
+    x_refresh_token_expires_in?: number;
+  }> {
+    const authResponse = await this.oauthClient.refreshUsingToken(refreshToken);
+    return authResponse.token as unknown as {
+      access_token: string;
+      expires_in?: number;
+      refresh_token?: string;
+      x_refresh_token_expires_in?: number;
+    };
+  }
+
+  // The actionable error surfaced when a production server's refresh token is
+  // dead. The interactive localhost flow cannot recover it — Intuit rejects the
+  // localhost redirect for production apps, and no human is present to complete
+  // a browser login in a host-spawned stdio subprocess — so we fail with
+  // instructions instead of opening a browser window that can never succeed.
+  private reauthError(cause?: string): Error {
+    const msg =
+      "QuickBooks authorization is invalid or expired and cannot be renewed automatically in " +
+      "production. Re-authorize this company using a public HTTPS redirect (see the \"Production " +
+      "Setup\" section of the README), then restart the server. Note: an HTTP 401 from the token " +
+      "endpoint usually means invalid_client — verify QUICKBOOKS_CLIENT_ID and " +
+      "QUICKBOOKS_CLIENT_SECRET before re-authorizing.";
+    return new Error(cause ? `${msg} (cause: ${cause})` : msg);
+  }
+
   private async startOAuthFlow(): Promise<void> {
     assertOAuthConfig();
+
+    // The interactive flow below binds a localhost callback server, but Intuit
+    // rejects localhost redirect URIs for production apps — so this can only
+    // ever succeed in sandbox. Fail fast with guidance rather than opening a
+    // doomed browser window on a production server.
+    if (this.environment === "production") {
+      throw this.reauthError();
+    }
 
     if (this.isAuthenticating) {
       return;
@@ -157,6 +309,13 @@ export class QuickbooksClient {
       // (RFC 6749 §4.1.2). Only the first callback may exchange the code.
       let codeExchangeStarted = false;
 
+      // Random per-run value, not guessable from the public repo. Bound to this
+      // authorize request and checked against every callback before we exchange
+      // anything, so a stranger who gets their own valid code for this client_id
+      // (client IDs aren't secret) can't hijack the callback and have their
+      // tokens written into our .env instead of ours.
+      const expectedState = crypto.randomBytes(24).toString("hex");
+
       // Create temporary server for OAuth callback
       const server = http.createServer(async (req, res) => {
         console.log(`[auth-server] ${req.method} ${req.url}`);
@@ -171,13 +330,25 @@ export class QuickbooksClient {
           return;
         }
 
+        // Reject any callback whose state doesn't match this run's authorize
+        // request, before touching codeExchangeStarted, so a spoofed/scanner
+        // hit can't consume the one-shot exchange lock and lock out the real
+        // callback that follows it.
+        const incomingState = new URL(req.url, `http://localhost:${port}`).searchParams.get("state");
+        if (incomingState !== expectedState) {
+          console.log(`[auth-server] Rejected callback with mismatched state (got: ${incomingState ?? "none"})`);
+          res.writeHead(400, { "Content-Type": "text/plain" });
+          res.end("Invalid or missing state parameter.");
+          return;
+        }
+
         // A duplicate callback for the same code must NOT be exchanged again, or
         // Intuit revokes the token minted by the first hit. `codeExchangeStarted`
         // is set synchronously before the first `await`, so the second request's
         // handler observes it and bails out here.
         if (codeExchangeStarted) {
-          res.writeHead(200, { 'Content-Type': 'text/html' });
-          res.end('<html><body style="font-family:Arial;text-align:center;margin-top:20vh"><h2>Processing… you can close this window.</h2></body></html>');
+          res.writeHead(200, { "Content-Type": "text/html" });
+          res.end("<html><body style=\"font-family:Arial;text-align:center;margin-top:20vh\"><h2>Processing… you can close this window.</h2></body></html>");
           return;
         }
         codeExchangeStarted = true;
@@ -256,7 +427,7 @@ export class QuickbooksClient {
         const authUri = flowClient
           .authorizeUri({
             scope: [OAuthClient.scopes.Accounting as string],
-            state: "testState",
+            state: expectedState,
           })
           .toString();
 
@@ -283,7 +454,7 @@ export class QuickbooksClient {
   }
 
   private saveTokensToEnv(): void {
-    const tokenPath = path.join(__dirname, "..", "..", ".env");
+    const tokenPath = TOKEN_STORE_PATH;
     const envContent = fs.existsSync(tokenPath)
       ? fs.readFileSync(tokenPath, "utf-8")
       : "";
@@ -302,7 +473,7 @@ export class QuickbooksClient {
       updateEnvVar("QUICKBOOKS_REFRESH_TOKEN", this.refreshToken);
     if (this.realmId) updateEnvVar("QUICKBOOKS_REALM_ID", this.realmId);
 
-    const newContent = envLines.join('\n');
+    const newContent = envLines.join("\n");
     const isSymlink = this.isSymbolicLink(tokenPath);
 
     if (isSymlink) {
@@ -315,7 +486,7 @@ export class QuickbooksClient {
       try {
         realPath = fs.realpathSync(tokenPath);
       } catch (e: any) {
-        if (e?.code === 'ENOENT') {
+        if (e?.code === "ENOENT") {
           // Dangling symlink: target doesn't exist yet. readlinkSync returns the
           // link target as stored, which may be RELATIVE — and a relative path is
           // resolved against the process cwd, not the link's own directory. Resolve
@@ -374,20 +545,36 @@ export class QuickbooksClient {
 
     this.refreshInFlight = (async () => {
       try {
-        // At this point we know refreshToken is not undefined
-        const authResponse = await this.oauthClient.refreshUsingToken(
-          this.refreshToken!,
-        );
-
-        // The intuit-oauth type declarations are incomplete — the runtime
-        // token object also contains refresh_token, x_refresh_token_expires_in,
-        // token_type, realmId, etc. Widen the type to reach those fields.
-        const token = authResponse.token as unknown as {
-          access_token: string;
-          expires_in?: number;
-          refresh_token?: string;
-          x_refresh_token_expires_in?: number;
-        };
+        // Multi-process rotation-race fix. We refresh with our in-memory token
+        // first and only consult .env AFTER it is rejected — so a valid token,
+        // including one this process just rotated but could not persist, is
+        // never proactively discarded. A sibling process sharing this .env may
+        // have rotated the token (Intuit invalidates the prior one on
+        // rotation); if the freshly-persisted disk value differs, retry once
+        // with it, turning a concurrent-rotation loss into a success rather
+        // than a spurious "token dead".
+        let token;
+        try {
+          token = await this.performRefresh(this.refreshToken!);
+        } catch (firstErr) {
+          // Only consult disk when OUR token was actually rejected: a rejection
+          // (invalid_grant/400/401) may mean a sibling rotated it, so the disk
+          // value is worth a retry. A transient error (5xx/429/network) says
+          // nothing about token validity — swapping the in-memory token for a
+          // possibly-stale disk value on a mere blip could discard a valid
+          // (e.g. rotated-but-unpersisted) token, so rethrow and let the caller
+          // retry with the token intact.
+          if (!this.isAuthInvalidation(firstErr)) {
+            throw firstErr;
+          }
+          const latest = this.readPersistedRefreshToken();
+          if (latest && latest !== this.refreshToken) {
+            this.refreshToken = latest;
+            token = await this.performRefresh(latest);
+          } else {
+            throw firstErr;
+          }
+        }
 
         this.accessToken = token.access_token;
 
@@ -423,8 +610,11 @@ export class QuickbooksClient {
           refreshExpiresIn < 14 * 24 * 3600
         ) {
           const days = Math.round(refreshExpiresIn / 86400);
+          const renewHint = this.environment === "production"
+            ? "Re-authorize before it expires (see README \"Production Setup\")."
+            : "Re-run `npm run auth` before it expires.";
           console.error(
-            `[qbo-client] WARNING: refresh token expires in ~${days} day(s). Re-run \`npm run auth\` before it expires.`,
+            `[qbo-client] WARNING: refresh token expires in ~${days} day(s). ${renewHint}`,
           );
         }
 
@@ -434,7 +624,13 @@ export class QuickbooksClient {
         };
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
-        throw new Error(`Failed to refresh Quickbooks token: ${message}`);
+        // Preserve the original error as `cause` so the caller can classify it
+        // (auth-invalidation vs transient) without re-parsing the message.
+        // Assigned rather than passed to the constructor so this compiles
+        // regardless of the configured TS lib target.
+        const wrapped = new Error(`Failed to refresh Quickbooks token: ${message}`);
+        (wrapped as Error & { cause?: unknown }).cause = error;
+        throw wrapped;
       } finally {
         this.refreshInFlight = undefined;
       }
@@ -466,13 +662,26 @@ export class QuickbooksClient {
           try {
             await this.refreshAccessToken();
           } catch (error) {
-            // A dead refresh token (rotated by another consumer, past the
-            // 100-day window, or revoked) is recoverable: fall back to the
-            // interactive OAuth flow instead of failing hard.
-            const message =
-              error instanceof Error ? error.message : String(error);
+            const message = error instanceof Error ? error.message : String(error);
+            // A transient failure (Intuit 5xx/429, network blip) says nothing
+            // about token validity. In BOTH environments, rethrow it as-is so
+            // the caller sees a retryable error and the preserved in-memory
+            // token self-heals on the next request. Never discard a valid token
+            // or launch a browser flow over a temporary outage.
+            if (!this.isAuthInvalidation(error)) {
+              throw error;
+            }
+            // Past here the refresh token is genuinely dead (revoked, expired
+            // past the 100-day window, or rotated out).
+            if (this.environment === "production") {
+              // The interactive fallback cannot help (localhost redirect is
+              // rejected, and nobody is watching a host-spawned subprocess to
+              // complete a browser login). Surface an actionable error.
+              throw this.reauthError(message);
+            }
+            // Sandbox: recoverable via the localhost interactive OAuth flow.
             console.error(
-              `[qbo-client] Token refresh failed (${message}); falling back to interactive OAuth`,
+              `[qbo-client] Refresh token rejected (${message}); falling back to interactive OAuth`,
             );
             this.refreshToken = undefined;
             this.accessToken = undefined;

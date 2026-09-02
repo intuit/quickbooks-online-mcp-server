@@ -25,6 +25,12 @@ process.env.QUICKBOOKS_REALM_ID = '12345';
 process.env.QUICKBOOKS_ENVIRONMENT = 'sandbox';
 process.env.QUICKBOOKS_REDIRECT_URI = 'https://developer.intuit.com/v2/OAuth2Playground/RedirectUrl';
 
+// Mock dotenv to a no-op so the module under test never loads the real .env.
+// dotenv's internal CommonJS require('fs') bypasses the ESM fs mock below, so
+// without this dotenv.config({override:true}) would clobber the env values set
+// above with whatever the real .env holds (e.g. QUICKBOOKS_ENVIRONMENT).
+jest.unstable_mockModule('dotenv', () => ({ default: { config: jest.fn(), parse: jest.fn(() => ({})) } }));
+
 // Track every OAuthClient the module constructs so tests can tell the
 // module-level client (env redirect) apart from the flow client (localhost).
 type MockOAuth = {
@@ -110,6 +116,18 @@ async function untilCallbackRegistered(timeoutMs = 2000): Promise<void> {
   }
 }
 
+// server.listen()'s callback (where authorizeUri() is called) runs on a
+// setImmediate scheduled AFTER http.createServer() already set callbackHandler
+// synchronously, so untilCallbackRegistered() alone can resolve before
+// authorizeUri() has actually been invoked. Poll for that call separately.
+async function untilAuthorizeUriCalled(client: MockOAuth, timeoutMs = 2000): Promise<void> {
+  const start = Date.now();
+  while (client.authorizeUri.mock.calls.length === 0) {
+    if (Date.now() - start > timeoutMs) throw new Error('authorizeUri() was never called');
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+}
+
 describe('QuickbooksClient.authenticate', () => {
   it('refreshes silently without starting the interactive flow when the refresh token works', async () => {
     refreshDispatch.mockResolvedValueOnce({
@@ -141,13 +159,7 @@ describe('QuickbooksClient.authenticate', () => {
 
     const authPromise = quickbooksClient.authenticate();
 
-    // Simulate the user completing authorization in the browser: Intuit
-    // redirects to the local callback server.
     await untilCallbackRegistered();
-    const res = { writeHead: jest.fn(), end: jest.fn() };
-    await callbackHandler!({ url: '/callback?code=abc&state=testState', method: 'GET' }, res);
-
-    await authPromise;
 
     // A second OAuthClient was constructed for the flow, with the localhost
     // redirect (NOT the playground URI from the environment).
@@ -155,13 +167,49 @@ describe('QuickbooksClient.authenticate', () => {
     const flowClient = oauthInstances[1];
     expect(flowClient.cfg.redirectUri).toBe('http://localhost:8000/callback');
 
+    // The state actually used is a random per-run value, not a fixed literal —
+    // read it off the authorizeUri() call so the simulated callback matches it.
+    await untilAuthorizeUriCalled(flowClient);
+    const { state } = (flowClient.authorizeUri.mock.calls[0][0] as { state: string; scope: string[] });
+    expect(state).toEqual(expect.stringMatching(/^[0-9a-f]{48}$/));
+
+    // Simulate the user completing authorization in the browser: Intuit
+    // redirects to the local callback server with that same state echoed back.
+    const res = { writeHead: jest.fn(), end: jest.fn() };
+    await callbackHandler!({ url: `/callback?code=abc&state=${state}`, method: 'GET' }, res);
+
+    await authPromise;
+
     // The code exchange went through the flow client, so authorize and
     // exchange used the same redirect_uri.
-    expect(flowClient.createToken).toHaveBeenCalledWith('/callback?code=abc&state=testState');
+    expect(flowClient.createToken).toHaveBeenCalledWith(`/callback?code=abc&state=${state}`);
     expect(oauthInstances[0].createToken).not.toHaveBeenCalled();
 
     // The flow's new refresh token was then exchanged for an access token.
     expect(refreshDispatch).toHaveBeenLastCalledWith('flow-refresh-token');
     expect(res.writeHead).toHaveBeenCalledWith(200, { 'Content-Type': 'text/html' });
   }, 15000);
+
+  it('rejects a callback whose state does not match the one from this run\'s authorize request', async () => {
+    // Force the next authenticate() to attempt a refresh, same setup as above.
+    (quickbooksClient as unknown as { accessTokenExpiry?: Date }).accessTokenExpiry = new Date(0);
+    refreshDispatch.mockRejectedValueOnce(new Error('invalid_grant'));
+    // Reset so untilCallbackRegistered() below waits for THIS run's handler
+    // rather than immediately observing the previous test's leftover value.
+    callbackHandler = undefined;
+
+    // Don't await — the flow is left waiting for a (never-arriving) valid callback.
+    void quickbooksClient.authenticate().catch(() => {});
+
+    await untilCallbackRegistered();
+
+    // Someone hitting the callback with a guessed/spoofed or stale state —
+    // e.g. a replayed URL, or another concurrent auth attempt — must be
+    // rejected with 400, and the code must never reach createToken().
+    const res = { writeHead: jest.fn(), end: jest.fn() };
+    await callbackHandler!({ url: '/callback?code=abc&state=not-the-real-state', method: 'GET' }, res);
+
+    expect(res.writeHead).toHaveBeenCalledWith(400, { 'Content-Type': 'text/plain' });
+    expect(createTokenDispatch).not.toHaveBeenCalled();
+  });
 });

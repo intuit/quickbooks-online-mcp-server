@@ -11,7 +11,17 @@ export interface UpdateDepositInput {
 export async function updateQuickbooksDeposit(data: UpdateDepositInput): Promise<ToolResponse<any>> {
   try {
     const quickbooks = await QuickbooksClient.getInstance();
-    const payload: any = { Id: data.id, SyncToken: data.sync_token, sparse: true };
+
+    // QBO rejects a sparse Deposit update that omits DepositToAccountRef (and
+    // other required fields) — unlike Purchase, sparse=true isn't honored here.
+    // Fetch the current record and send a full object back instead.
+    const current: any = await new Promise((resolve, reject) => {
+      (quickbooks as any).getDeposit(data.id, (err: any, deposit: any) => {
+        if (err) reject(err); else resolve(deposit);
+      });
+    });
+
+    const payload: any = { ...current, SyncToken: data.sync_token };
     if (data.private_note) payload.PrivateNote = data.private_note;
 
     return new Promise((resolve) => {
