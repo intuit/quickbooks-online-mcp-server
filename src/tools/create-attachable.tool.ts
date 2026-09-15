@@ -1,12 +1,19 @@
 import { createQuickbooksAttachable } from "../handlers/create-quickbooks-attachable.handler.js";
 import { ToolDefinition } from "../types/tool-definition.js";
 import { z } from "zod";
+import { applyDownloadUriPolicy } from "../helpers/download-uri.js";
 
 const toolName = "create_attachable";
 const toolDescription =
   "Create an attachable (file attachment) in QuickBooks Online. File content can come from file_path (a file on the machine running this server — preferred for local files of any size), file_url (an https URL the server downloads), or base64_content (inline bytes — only practical for small files). Precedence: file_url/file_path (mutually exclusive) win over base64_content. With no file source, creates a metadata-only attachment record. Max file size 100 MB (QBO limit).";
 
 const toolSchema = z.object({
+  return_download_uri: z
+    .boolean()
+    .optional()
+    .describe(
+      "If true, include TempDownloadUri (a multi-KB pre-signed URL) in the response. Omitted by default to keep responses small - use download_attachment to fetch the file itself."
+    ),
   file_name: z.string().min(1).describe("File name including extension (e.g., 'receipt.pdf')."),
   note: z.string().optional().describe("Optional note describing the attachment."),
   category: z.string().optional().describe("Optional QBO attachment category."),
@@ -53,7 +60,7 @@ const toolHandler = async ({ params }: any) => {
   return {
     content: [
       { type: "text" as const, text: `Attachable created:` },
-      { type: "text" as const, text: JSON.stringify(response.result, null, 2) },
+      { type: "text" as const, text: JSON.stringify(applyDownloadUriPolicy(response.result, params?.return_download_uri), null, 2) },
     ],
   };
 };

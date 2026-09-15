@@ -183,6 +183,7 @@ import { GetPreferencesTool } from "./tools/get-preferences.tool.js";
 // Attachable tools
 import { CreateAttachableTool } from "./tools/create-attachable.tool.js";
 import { GetAttachableTool } from "./tools/get-attachable.tool.js";
+import { DownloadAttachmentTool } from "./tools/download-attachment.tool.js";
 import { UpdateAttachableTool } from "./tools/update-attachable.tool.js";
 import { DeleteAttachableTool } from "./tools/delete-attachable.tool.js";
 import { SearchAttachablesTool } from "./tools/search-attachables.tool.js";
@@ -413,6 +414,7 @@ const main = async () => {
   // Add tools for attachables
   RegisterTool(server, CreateAttachableTool);
   RegisterTool(server, GetAttachableTool);
+RegisterTool(server, DownloadAttachmentTool);
   RegisterTool(server, UpdateAttachableTool);
   RegisterTool(server, DeleteAttachableTool);
   RegisterTool(server, SearchAttachablesTool);
