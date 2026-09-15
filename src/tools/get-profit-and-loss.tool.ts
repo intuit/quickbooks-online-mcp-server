@@ -1,5 +1,6 @@
 import { getQuickbooksProfitAndLoss } from "../handlers/get-quickbooks-profit-and-loss.handler.js";
 import { ToolDefinition } from "../types/tool-definition.js";
+import { normalizeProfitAndLossReport } from "../helpers/normalize-profit-and-loss-report.js";
 import { z } from "zod";
 
 const toolName = "get_profit_and_loss";
@@ -19,7 +20,15 @@ const toolSchema = z.object({
 const toolHandler = async ({ params }: any) => {
   const response = await getQuickbooksProfitAndLoss(params);
   if (response.isError) return { content: [{ type: "text" as const, text: `Error: ${response.error}` }] };
-  return { content: [{ type: "text" as const, text: `Profit and Loss Report:` }, { type: "text" as const, text: JSON.stringify(response.result, null, 2) }] };
+  const normalized = normalizeProfitAndLossReport(response.result);
+  const status = normalized.verified ? "VERIFIED" : "UNVERIFIED";
+  return {
+    content: [
+      { type: "text" as const, text: `Profit and Loss Report (${status}):` },
+      { type: "text" as const, text: JSON.stringify({ normalized, rawReport: response.result }, null, 2) },
+    ],
+  };
 };
 
 export const GetProfitAndLossTool: ToolDefinition<typeof toolSchema> = { name: toolName, description: toolDescription, schema: toolSchema, handler: toolHandler };
+
