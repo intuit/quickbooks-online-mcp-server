@@ -430,6 +430,150 @@ describe('Bill Handlers', () => {
       expect(result.isError).toBe(true);
       expect(result.error).toContain('Preferences read failed');
     });
+
+    // ── Global-tax-model (CA) tax preservation ────────────────────────────────
+    // A paid bill that reads back as GlobalTaxCalculation "NotApplicable" while
+    // carrying 13% tax on one line. Echoing that on update stripped the tax.
+    const taxedBill = {
+      Id: '42',
+      SyncToken: '2',
+      VendorRef: { value: '7' },
+      GlobalTaxCalculation: 'NotApplicable',
+      TotalAmt: 1113,
+      HomeTotalAmt: 1113,
+      Balance: 0,
+      HomeBalance: 0,
+      Line: [
+        { Id: '1', Amount: 1000, DetailType: 'AccountBasedExpenseLineDetail', AccountBasedExpenseLineDetail: { AccountRef: { value: '10' }, TaxCodeRef: { value: '3' } } },
+        { Id: '2', Amount: 100, DetailType: 'AccountBasedExpenseLineDetail', AccountBasedExpenseLineDetail: { AccountRef: { value: '10' }, TaxCodeRef: { value: '6' } } },
+      ],
+      TxnTaxDetail: {
+        TotalTax: 13,
+        TaxLine: [{ Amount: 13, DetailType: 'TaxLineDetail', TaxLineDetail: { TaxRateRef: { value: '11' }, PercentBased: true, TaxPercent: 13, NetAmountTaxable: 100 } }],
+      },
+    };
+
+    const captureUpdate = (echo?: (payload: any) => any) => {
+      const sent: { payload?: any } = {};
+      mockQuickBooksInstance.getBill.mockImplementation((_id: any, cb: any) => cb(null, taxedBill));
+      mockQuickBooksInstance.updateBill.mockImplementation((payload: any, cb: any) => {
+        sent.payload = payload;
+        cb(null, echo ? echo(payload) : { ...taxedBill, ...payload, SyncToken: '3' });
+      });
+      return sent;
+    };
+
+    it('does not echo NotApplicable on a taxed bill — infers TaxExcluded from its amounts', async () => {
+      const sent = captureUpdate();
+      const result = await updateQuickbooksBill({ Id: '42', PrivateNote: 'x' });
+
+      expect(result.isError).toBe(false);
+      expect(sent.payload.GlobalTaxCalculation).toBe('TaxExcluded');
+    });
+
+    it('infers TaxInclusive when the line amounts already contain the tax', async () => {
+      const inclusive = { ...taxedBill, TotalAmt: 1100 };
+      const sent: any = {};
+      mockQuickBooksInstance.getBill.mockImplementation((_id: any, cb: any) => cb(null, inclusive));
+      mockQuickBooksInstance.updateBill.mockImplementation((payload: any, cb: any) => {
+        sent.payload = payload;
+        cb(null, { ...inclusive, ...payload });
+      });
+
+      await updateQuickbooksBill({ Id: '42', PrivateNote: 'x' });
+
+      expect(sent.payload.GlobalTaxCalculation).toBe('TaxInclusive');
+    });
+
+    it('leaves NotApplicable alone when the bill has no tax or the mode cannot be inferred', async () => {
+      const untaxed = { ...taxedBill, TxnTaxDetail: { TotalTax: 0 }, TotalAmt: 1100 };
+      const sent: any = {};
+      mockQuickBooksInstance.getBill.mockImplementation((_id: any, cb: any) => cb(null, untaxed));
+      mockQuickBooksInstance.updateBill.mockImplementation((payload: any, cb: any) => {
+        sent.payload = payload;
+        cb(null, { ...untaxed, ...payload });
+      });
+      await updateQuickbooksBill({ Id: '42', PrivateNote: 'x' });
+      expect(sent.payload.GlobalTaxCalculation).toBe('NotApplicable');
+
+      const odd = { ...taxedBill, TotalAmt: 999 };
+      mockQuickBooksInstance.getBill.mockImplementation((_id: any, cb: any) => cb(null, odd));
+      mockQuickBooksInstance.updateBill.mockImplementation((payload: any, cb: any) => {
+        sent.payload = payload;
+        cb(null, { ...odd, ...payload });
+      });
+      await updateQuickbooksBill({ Id: '42', PrivateNote: 'x' });
+      expect(sent.payload.GlobalTaxCalculation).toBe('NotApplicable');
+    });
+
+    it('respects (and normalizes) a caller-supplied GlobalTaxCalculation', async () => {
+      const sent = captureUpdate();
+      await updateQuickbooksBill({ Id: '42', GlobalTaxCalculation: 'TaxExclusive' });
+      expect(sent.payload.GlobalTaxCalculation).toBe('TaxExcluded');
+
+      const bad = await updateQuickbooksBill({ Id: '42', GlobalTaxCalculation: 'Bogus' });
+      expect(bad.isError).toBe(true);
+      expect(bad.error).toContain('Valid values');
+    });
+
+    it('keeps TxnTaxDetail on a header-only edit but never echoes derived totals', async () => {
+      const sent = captureUpdate();
+      await updateQuickbooksBill({ Id: '42', PrivateNote: 'x' });
+
+      expect(sent.payload.TxnTaxDetail).toEqual(taxedBill.TxnTaxDetail);
+      for (const field of ['TotalAmt', 'HomeTotalAmt', 'Balance', 'HomeBalance']) {
+        expect(sent.payload).not.toHaveProperty(field);
+      }
+
+      // ...but a derived field the caller supplies explicitly is still forwarded.
+      await updateQuickbooksBill({ Id: '42', TotalAmt: 1113 });
+      expect(sent.payload.TotalAmt).toBe(1113);
+    });
+
+    it('drops the stale TxnTaxDetail when lines change, unless the caller supplies one', async () => {
+      const sent = captureUpdate();
+      await updateQuickbooksBill({ Id: '42', Line: [{ Id: '2', Amount: 14 }] });
+      expect(sent.payload).not.toHaveProperty('TxnTaxDetail');
+
+      const override = { TotalTax: 1.82, TaxLine: [] };
+      await updateQuickbooksBill({ Id: '42', Line: [{ Id: '2', Amount: 14 }], TxnTaxDetail: override });
+      expect(sent.payload.TxnTaxDetail).toEqual(override);
+    });
+
+    it('errors when a header-only edit makes QuickBooks strip the tax', async () => {
+      captureUpdate((payload) => ({ ...taxedBill, ...payload, TxnTaxDetail: { TotalTax: 0 }, TotalAmt: 1100 }));
+
+      const result = await updateQuickbooksBill({ Id: '42', PrivateNote: 'x' });
+
+      expect(result.isError).toBe(true);
+      expect(result.error).toContain('tax total from 13.00 to 0.00');
+      expect(result.error).toContain('1113.00 → 1100.00');
+      expect(result.error).not.toContain('Also dropped');
+    });
+
+    it('reports dropped refs alongside a stripped tax total', async () => {
+      captureUpdate(() => ({
+        ...taxedBill,
+        TxnTaxDetail: undefined,
+        TotalAmt: undefined,
+        Line: taxedBill.Line.map((l) => ({ ...l, AccountBasedExpenseLineDetail: { AccountRef: { value: '10' } } })),
+      }));
+
+      const result = await updateQuickbooksBill({ Id: '42', PrivateNote: 'x' });
+
+      expect(result.isError).toBe(true);
+      expect(result.error).toContain('tax total from 13.00 to 0.00');
+      expect(result.error).toContain('1113.00 → 0.00');
+      expect(result.error).toContain('Also dropped: Line 1: TaxCodeRef, Line 2: TaxCodeRef');
+    });
+
+    it('does not flag a tax change the caller asked for by editing lines', async () => {
+      captureUpdate((payload) => ({ ...taxedBill, ...payload, TxnTaxDetail: { TotalTax: 1.82 } }));
+
+      const result = await updateQuickbooksBill({ Id: '42', Line: [{ Id: '2', Amount: 14 }] });
+
+      expect(result.isError).toBe(false);
+    });
   });
 
   describe('deleteQuickbooksBill', () => {

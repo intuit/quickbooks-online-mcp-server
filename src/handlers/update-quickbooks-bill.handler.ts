@@ -1,6 +1,7 @@
 import { QuickbooksClient } from "../clients/quickbooks-client.js";
 import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
+import { normalizePayloadGlobalTax } from "../helpers/global-tax.js";
 
 // QBO bill updates are a FULL overwrite (sparse:false): any field omitted from the
 // payload is deleted server-side. Callers routinely omit line-level ClassRef and
@@ -32,15 +33,59 @@ function mergeLine(currentLine: any, incomingLine: any): any {
   return merged;
 }
 
+// Amounts QBO derives from the lines. Echoing the fetched values back is at best
+// redundant and at worst stale (they no longer match once the caller edits lines).
+const DERIVED_FIELDS = ["TotalAmt", "HomeTotalAmt", "Balance", "HomeBalance"] as const;
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+function totalTax(bill: any): number {
+  return round2(Number(bill.TxnTaxDetail?.TotalTax ?? 0));
+}
+
+// Global-tax-model (CA/UK/AU) bills can read back as GlobalTaxCalculation
+// "NotApplicable" while carrying real tax — e.g. bills created before create-bill
+// forwarded GlobalTaxCalculation. Echoing "NotApplicable" on update tells QBO the
+// bill has no tax and it strips the HST/GST. Recover the true mode from the bill's
+// own amounts: lines + tax == total → TaxExcluded; lines == total → TaxInclusive.
+// Returns undefined when the mode is fine or cannot be inferred.
+function inferGlobalTaxCalculation(current: any): string | undefined {
+  if (current.GlobalTaxCalculation !== "NotApplicable") return undefined;
+  const tax = totalTax(current);
+  if (tax === 0) return undefined;
+  const lineSum = round2(
+    current.Line
+      .filter((l: any) => l.DetailType !== "SubTotalLineDetail")
+      .reduce((sum: number, l: any) => sum + Number(l.Amount), 0)
+  );
+  const total = round2(Number(current.TotalAmt));
+  if (Math.abs(lineSum + tax - total) < 0.005) return "TaxExcluded";
+  if (Math.abs(lineSum - total) < 0.005) return "TaxInclusive";
+  return undefined;
+}
+
 function mergeBill(current: any, incoming: any): any {
   // Header: start from current, override only fields the caller supplied. Always write
   // with the freshest SyncToken; a stale caller token would 5010-conflict.
   const merged: any = { ...current, ...incoming, SyncToken: current.SyncToken };
+  for (const field of DERIVED_FIELDS) {
+    if (!(field in incoming)) delete merged[field];
+  }
+  if (incoming.GlobalTaxCalculation === undefined) {
+    const inferred = inferGlobalTaxCalculation(current);
+    if (inferred) merged.GlobalTaxCalculation = inferred;
+  }
 
   if (!Array.isArray(incoming.Line)) {
-    merged.Line = current.Line; // header-only update — keep the existing lines verbatim
+    // Header-only update — keep the existing lines and the existing TxnTaxDetail
+    // verbatim, so per-document exact-tax overrides survive untouched.
+    merged.Line = current.Line;
     return merged;
   }
+
+  // Lines changed: the fetched TxnTaxDetail is now stale. Let QBO recompute tax from
+  // the merged lines' TaxCodeRefs unless the caller supplied an explicit override.
+  if (incoming.TxnTaxDetail === undefined) delete merged.TxnTaxDetail;
 
   const currentById = new Map<string, any>();
   for (const line of current.Line) currentById.set(String(line.Id), line);
@@ -48,6 +93,15 @@ function mergeBill(current: any, incoming: any): any {
     mergeLine(line.Id != null ? currentById.get(String(line.Id)) : undefined, line)
   );
   return merged;
+}
+
+// True when the caller asked for nothing that could legitimately change the tax total.
+function taxShouldBeUnchanged(incoming: any): boolean {
+  return (
+    !Array.isArray(incoming.Line) &&
+    incoming.TxnTaxDetail === undefined &&
+    incoming.GlobalTaxCalculation === undefined
+  );
 }
 
 // Any preserved ref that existed on a current line but is missing from the same-Id
@@ -95,7 +149,8 @@ function isAutomatedSalesTax(preferences: any): boolean {
  * (3) write, (4) verify no preserved ref was dropped. A dropped ClassRef is always an
  * error. A dropped TaxCodeRef is an error only when the company is NOT on Automated
  * Sales Tax; under AST, QBO manages tax centrally and removing line-level TaxCodeRef
- * is expected, so it is surfaced as a non-blocking warning instead. Pass bill.Id plus
+ * is expected, so it is surfaced as a non-blocking warning instead. A header-only edit
+ * that moves the tax total is always an error. Pass bill.Id plus
  * only the fields to change.
  */
 export async function updateQuickbooksBill(bill: any): Promise<ToolResponse<any>> {
@@ -112,6 +167,7 @@ export async function updateQuickbooksBill(bill: any): Promise<ToolResponse<any>
       );
     });
 
+    normalizePayloadGlobalTax(bill);
     const merged = mergeBill(current, bill);
 
     const updated = await new Promise<any>((resolve, reject) => {
@@ -141,6 +197,24 @@ export async function updateQuickbooksBill(bill: any): Promise<ToolResponse<any>
     for (const line of dropped.ClassRef) errorRefs.push(`${line}: ClassRef`);
     if (!astEnabled) {
       for (const line of dropped.TaxCodeRef) errorRefs.push(`${line}: TaxCodeRef`);
+    }
+
+    // A header-only edit must never move the tax total. If it did, the bill total moved
+    // with it — on a paid bill that silently breaks the link to its payment.
+    const taxBefore = totalTax(current);
+    const taxAfter = totalTax(updated);
+    if (taxShouldBeUnchanged(bill) && Math.abs(taxAfter - taxBefore) >= 0.005) {
+      return {
+        result: updated,
+        isError: true,
+        error:
+          `Bill ${bill.Id} was updated but QuickBooks changed its tax total from ` +
+          `${taxBefore.toFixed(2)} to ${taxAfter.toFixed(2)} (bill total ` +
+          `${Number(current.TotalAmt).toFixed(2)} → ${Number(updated.TotalAmt ?? 0).toFixed(2)}), ` +
+          `although no lines or tax fields were changed. Restore the tax (re-send the ` +
+          `original TxnTaxDetail and GlobalTaxCalculation) before relying on this bill.` +
+          (errorRefs.length > 0 ? ` Also dropped: ${errorRefs.join(", ")}.` : ""),
+      };
     }
 
     if (errorRefs.length > 0) {

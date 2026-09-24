@@ -1,6 +1,7 @@
 import { QuickbooksClient } from "../clients/quickbooks-client.js";
 import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
+import { normalizePayloadGlobalTax } from "../helpers/global-tax.js";
 
 /**
  * Create a purchase in QuickBooks Online
@@ -9,6 +10,11 @@ import { formatError } from "../helpers/format-error.js";
 export async function createQuickbooksPurchase(purchaseData: any): Promise<ToolResponse<any>> {
   try {
     const quickbooks = await QuickbooksClient.getInstance();
+
+    // Forward GlobalTaxCalculation verbatim after normalizing the common
+    // "TaxExclusive" misspelling — an invalid enum reaching QBO fails the
+    // whole request with an opaque "Failed to parse json object" fault.
+    normalizePayloadGlobalTax(purchaseData ?? {});
 
     return new Promise((resolve) => {
       quickbooks.createPurchase(purchaseData, (err: any, purchase: any) => {

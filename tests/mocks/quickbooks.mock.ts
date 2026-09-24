@@ -267,6 +267,20 @@ export function resetAllMocks() {
       (mock as jest.Mock).mockReset();
     }
   });
+  // Update handlers perform read-merge-write: they fetch the current entity
+  // via getX before updating. Install a minimal default implementation on
+  // every get* method so update tests that only mock updateX keep working;
+  // tests needing a specific fetched entity override with mockImplementation.
+  Object.entries(mockQuickBooksInstance).forEach(([name, mock]) => {
+    if (name.startsWith('get') && typeof mock === 'function' && 'mockImplementation' in mock) {
+      (mock as jest.Mock).mockImplementation((...args: unknown[]) => {
+        const callback = args[args.length - 1] as (err: null, result: unknown) => void;
+        if (typeof callback === 'function') {
+          callback(null, { Id: String(args[0] ?? 'mock-id'), SyncToken: '0' });
+        }
+      });
+    }
+  });
   mockQuickbooksClient.authenticate.mockReset();
   mockQuickbooksClient.getQuickbooks.mockReset();
   (mockQuickbooksClient.getQuickbooks as any).mockReturnValue(mockQuickBooksInstance);
