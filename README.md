@@ -387,10 +387,11 @@ If you only want to read your own company's data, you still need to set up an ap
 
 ### Production Setup
 
-The Intuit Developer Portal **rejects `http://localhost` redirect URIs in production mode** — every contributor hits this. Two known workarounds:
+The Intuit Developer Portal **rejects `http://localhost` redirect URIs in production mode** — every contributor hits this. Three known workarounds:
 
 1. **ngrok tunnel (most common):** run `ngrok http 8000`, then on your Intuit app go to **Settings → Redirect URIs** and add the generated `https://<id>.ngrok-free.app/callback` URL. Use that URL for the OAuth handshake, then revert to localhost afterwards.
 2. **Deploy a small public callback handler** (e.g., on a VPS or serverless function) that captures the auth code and hands it back to your local setup. More involved; only needed if you can't use ngrok.
+3. Use any redirect URI, and manually edit the URL in the browswer to `http://localhost:8000/callback?...` during the authorization flow.
 
 After completing the production OAuth handshake, the refresh token is what matters — once it's in `.env`, you no longer need the public redirect URL for day-to-day use. Refresh tokens auto-rotate; the server persists the new token on each refresh.
 
