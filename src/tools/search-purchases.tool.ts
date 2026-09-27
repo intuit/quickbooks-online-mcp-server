@@ -4,11 +4,23 @@ import { z } from "zod";
 
 // Define the tool metadata
 const toolName = "search_purchases";
-const toolDescription = "Search purchases in QuickBooks Online that match given criteria.";
+const toolDescription =
+  "Search for purchases (expenses) in QuickBooks Online. " +
+  "The QBXML query language only supports filtering purchases on Id, TxnDate, TotalAmt, DocNumber, " +
+  "PaymentType, MetaData.CreateTime and MetaData.LastUpdatedTime; the vendor reference (EntityRef) is NOT " +
+  "queryable. To find a vendor's purchases, use get_transaction_list with the vendor parameter instead.";
 
 // Define the expected input schema for searching purchases
 const toolSchema = z.object({
-  criteria: z.array(z.any()).optional(),
+  criteria: z
+    .array(z.any())
+    .optional()
+    .describe(
+      "Search criteria. Only the queryable Purchase fields are accepted: Id, TxnDate, TotalAmt, DocNumber, " +
+        "PaymentType, MetaData.CreateTime, MetaData.LastUpdatedTime. Filtering on EntityRef/VendorRef or " +
+        "line fields fails with a 400 — use get_transaction_list for vendor-based lookups. " +
+        "Example: [{field: 'TxnDate', value: '2026-01-01', operator: '>='}]."
+    ),
   asc: z.string().optional(),
   desc: z.string().optional(),
   limit: z.number().optional(),
@@ -44,4 +56,4 @@ export const SearchPurchasesTool: ToolDefinition<typeof toolSchema> = {
   description: toolDescription,
   schema: toolSchema,
   handler: toolHandler,
-}; 
+};
