@@ -199,6 +199,7 @@ export const mockQuickBooksInstance = {
 
   // Report methods
   reportBalanceSheet: jest.fn(),
+  reportTransactionList: jest.fn(),
   reportProfitAndLoss: jest.fn(),
   reportCashFlow: jest.fn(),
   reportTrialBalance: jest.fn(),

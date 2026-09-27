@@ -193,6 +193,7 @@ import { GetProfitAndLossTool } from "./tools/get-profit-and-loss.tool.js";
 import { GetCashFlowTool } from "./tools/get-cash-flow.tool.js";
 import { GetTrialBalanceTool } from "./tools/get-trial-balance.tool.js";
 import { GetGeneralLedgerTool } from "./tools/get-general-ledger.tool.js";
+import { GetTransactionListTool } from "./tools/get-transaction-list.tool.js";
 
 // Sales/AR Report tools
 import { GetCustomerSalesTool } from "./tools/get-customer-sales.tool.js";
@@ -423,6 +424,7 @@ const main = async () => {
   RegisterTool(server, GetCashFlowTool);
   RegisterTool(server, GetTrialBalanceTool);
   RegisterTool(server, GetGeneralLedgerTool);
+  RegisterTool(server, GetTransactionListTool);
 
   // Add sales/AR report tools
   RegisterTool(server, GetCustomerSalesTool);
