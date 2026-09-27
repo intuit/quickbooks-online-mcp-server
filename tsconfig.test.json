@@ -12,7 +12,8 @@
     // use, which NodeNext would reject.
     "moduleResolution": "Bundler",
     "types": ["jest", "node"],
-    "noEmit": true
+    "noEmit": true,
+    "rootDir": "."
   },
   "include": ["src/**/*.ts", "tests/**/*.ts"]
 }
