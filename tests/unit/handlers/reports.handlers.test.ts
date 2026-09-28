@@ -19,6 +19,7 @@ const { getQuickbooksCustomerBalance } = await import('../../../src/handlers/get
 const { getQuickbooksAgedPayables } = await import('../../../src/handlers/get-quickbooks-aged-payables.handler');
 const { getQuickbooksVendorExpenses } = await import('../../../src/handlers/get-quickbooks-vendor-expenses.handler');
 const { getQuickbooksVendorBalance } = await import('../../../src/handlers/get-quickbooks-vendor-balance.handler');
+const { getQuickbooksTransactionList } = await import('../../../src/handlers/get-quickbooks-transaction-list.handler');
 
 describe('Report Handlers', () => {
   beforeEach(() => {
@@ -483,6 +484,77 @@ describe('Report Handlers', () => {
       (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await getQuickbooksVendorExpenses({});
+
+      expect(result.isError).toBe(true);
+      expect(result.error).toContain('Auth failed');
+    });
+  });
+
+  describe('getQuickbooksTransactionList', () => {
+    it('should get the transaction list report', async () => {
+      const mockReport = { Header: { ReportName: 'TransactionList' }, Rows: [] };
+      mockQuickBooksInstance.reportTransactionList.mockImplementation((params: any, cb: any) => cb(null, mockReport));
+
+      const result = await getQuickbooksTransactionList({ start_date: '2026-01-01' });
+
+      expect(result.isError).toBe(false);
+      expect(result.result).toEqual(mockReport);
+    });
+
+    it('should pass vendor, customer and other filters to the report', async () => {
+      const mockReport = { Header: {} };
+      mockQuickBooksInstance.reportTransactionList.mockImplementation((params: any, cb: any) => cb(null, mockReport));
+
+      const result = await getQuickbooksTransactionList({
+        start_date: '2026-01-01',
+        end_date: '2026-12-31',
+        vendor: '176',
+        customer: '42',
+        group_by: 'Vendor',
+        transaction_type: 'Bill,Check',
+      });
+
+      expect(result.isError).toBe(false);
+      expect(mockQuickBooksInstance.reportTransactionList).toHaveBeenCalledWith(
+        {
+          start_date: '2026-01-01',
+          end_date: '2026-12-31',
+          vendor: '176',
+          customer: '42',
+          group_by: 'Vendor',
+          transaction_type: 'Bill,Check',
+        },
+        expect.any(Function)
+      );
+    });
+
+    it('does not forward start_date when it is missing', async () => {
+      // start_date is required at the tool schema, so this only guards direct
+      // handler calls: a missing value must be omitted from the QBO params
+      // rather than forwarded as undefined.
+      const mockReport = { Header: {} };
+      mockQuickBooksInstance.reportTransactionList.mockImplementation((params: any, cb: any) => cb(null, mockReport));
+
+      const result = await getQuickbooksTransactionList({} as any);
+
+      expect(result.isError).toBe(false);
+      expect(mockQuickBooksInstance.reportTransactionList).toHaveBeenCalledWith({}, expect.any(Function));
+    });
+
+    it('should handle API errors', async () => {
+      mockQuickBooksInstance.reportTransactionList.mockImplementation((params: any, cb: any) =>
+        cb(new Error('Report failed'), null)
+      );
+
+      const result = await getQuickbooksTransactionList({ start_date: '2026-01-01', vendor: '176' });
+
+      expect(result.isError).toBe(true);
+    });
+
+    it('should handle authentication errors', async () => {
+      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
+
+      const result = await getQuickbooksTransactionList({ start_date: '2026-01-01' });
 
       expect(result.isError).toBe(true);
       expect(result.error).toContain('Auth failed');

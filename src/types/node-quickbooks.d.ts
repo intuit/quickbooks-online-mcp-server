@@ -85,6 +85,9 @@ declare module 'node-quickbooks' {
     updatePurchase(purchaseData: object, callback: (err: any, purchase: any) => void): void;
     deletePurchase(idOrEntity: any, callback: (err: any, response: any) => void): void;
 
+    // Reports
+    reportTransactionList(options: object, callback: (err: any, report: any) => void): void;
+
     // You can add more methods as needed
   }
 }
