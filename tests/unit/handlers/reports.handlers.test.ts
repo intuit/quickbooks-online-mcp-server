@@ -495,7 +495,7 @@ describe('Report Handlers', () => {
       const mockReport = { Header: { ReportName: 'TransactionList' }, Rows: [] };
       mockQuickBooksInstance.reportTransactionList.mockImplementation((params: any, cb: any) => cb(null, mockReport));
 
-      const result = await getQuickbooksTransactionList({});
+      const result = await getQuickbooksTransactionList({ start_date: '2026-01-01' });
 
       expect(result.isError).toBe(false);
       expect(result.result).toEqual(mockReport);
@@ -528,12 +528,25 @@ describe('Report Handlers', () => {
       );
     });
 
+    it('does not forward start_date when it is missing', async () => {
+      // start_date is required at the tool schema, so this only guards direct
+      // handler calls: a missing value must be omitted from the QBO params
+      // rather than forwarded as undefined.
+      const mockReport = { Header: {} };
+      mockQuickBooksInstance.reportTransactionList.mockImplementation((params: any, cb: any) => cb(null, mockReport));
+
+      const result = await getQuickbooksTransactionList({} as any);
+
+      expect(result.isError).toBe(false);
+      expect(mockQuickBooksInstance.reportTransactionList).toHaveBeenCalledWith({}, expect.any(Function));
+    });
+
     it('should handle API errors', async () => {
       mockQuickBooksInstance.reportTransactionList.mockImplementation((params: any, cb: any) =>
         cb(new Error('Report failed'), null)
       );
 
-      const result = await getQuickbooksTransactionList({ vendor: '176' });
+      const result = await getQuickbooksTransactionList({ start_date: '2026-01-01', vendor: '176' });
 
       expect(result.isError).toBe(true);
     });
@@ -541,7 +554,7 @@ describe('Report Handlers', () => {
     it('should handle authentication errors', async () => {
       (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
-      const result = await getQuickbooksTransactionList({});
+      const result = await getQuickbooksTransactionList({ start_date: '2026-01-01' });
 
       expect(result.isError).toBe(true);
       expect(result.error).toContain('Auth failed');

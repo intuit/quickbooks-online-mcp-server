@@ -9,10 +9,10 @@ const toolDescription =
   "VendorCredit, ...). Supports server-side filtering by vendor and customer — filters the entity query " +
   "language does not support (e.g. Purchase.EntityRef is not queryable). Each row's Transaction Type cell " +
   "includes the transaction Id, which can be used with the get_* entity tools (e.g. get_purchase) to fetch " +
-  "the full object. Note: when no dates are given, QBO defaults the report to this month-to-date; pass " +
-  "start_date (e.g. 1900-01-01) to cover the full history.";
+  "the full object. start_date is required (QBO otherwise defaults the report to this month-to-date and " +
+  "silently omits earlier transactions); pass 1900-01-01 to cover the full history.";
 const toolSchema = z.object({
-  start_date: z.string().optional().describe("Start date (YYYY-MM-DD). QBO defaults to this month-to-date when omitted."),
+  start_date: z.string().describe("Start date (YYYY-MM-DD), required. Pass 1900-01-01 to cover the full history."),
   end_date: z.string().optional().describe("End date (YYYY-MM-DD). Defaults to today."),
   vendor: z.string().optional().describe("Filter by vendor ID(s), comma separated (find IDs with search_vendors)"),
   customer: z.string().optional().describe("Filter by customer ID(s), comma separated (find IDs with search_customers)"),
