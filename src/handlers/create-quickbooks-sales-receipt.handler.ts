@@ -10,6 +10,7 @@ export interface CreateSalesReceiptInput {
     unit_price: number;
     description?: string;
     tax_code_ref?: string; // TaxCode id (non-US) or TAX/NON (US)
+    class_ref?: string; // Class id for class tracking
   }>;
   payment_method_ref?: string;
   deposit_to_account_ref?: string;
@@ -36,6 +37,7 @@ export async function createQuickbooksSalesReceipt(data: CreateSalesReceiptInput
           Qty: l.qty,
           UnitPrice: l.unit_price,
           TaxCodeRef: l.tax_code_ref ? { value: l.tax_code_ref } : undefined,
+          ClassRef: l.class_ref ? { value: l.class_ref } : undefined,
         },
       })),
     };
