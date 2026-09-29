@@ -11,6 +11,7 @@ const lineItemSchema = z.object({
   unit_price: z.number().nonnegative().describe("Unit price"),
   description: z.string().optional().describe("Line description"),
   tax_code_ref: z.string().min(1).optional().describe("Tax code for this line: a TaxCode Id for non-US companies (use search_tax_codes), or 'TAX'/'NON' for US companies"),
+  class_ref: z.string().min(1).optional().describe("Class ID for class tracking (use search_classes)"),
 });
 
 const toolSchema = z.object({
