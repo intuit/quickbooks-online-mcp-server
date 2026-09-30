@@ -10,6 +10,7 @@ import { ReadInvoiceTool } from "./tools/read-invoice.tool.js";
 import { SearchInvoicesTool } from "./tools/search-invoices.tool.js";
 import { UpdateInvoiceTool } from "./tools/update-invoice.tool.js";
 import { GetInvoicePdfTool } from "./tools/get-invoice-pdf.tool.js";
+import { SendInvoiceTool } from "./tools/send-invoice.tool.js";
 import { CreateAccountTool } from "./tools/create-account.tool.js";
 import { UpdateAccountTool } from "./tools/update-account.tool.js";
 import { SearchAccountsTool } from "./tools/search-accounts.tool.js";
@@ -30,6 +31,7 @@ import { CreateEstimateTool } from "./tools/create-estimate.tool.js";
 import { GetEstimateTool } from "./tools/get-estimate.tool.js";
 import { UpdateEstimateTool } from "./tools/update-estimate.tool.js";
 import { DeleteEstimateTool } from "./tools/delete-estimate.tool.js";
+import { SendEstimateTool } from "./tools/send-estimate.tool.js";
 import { SearchCustomersTool } from "./tools/search-customers.tool.js";
 import { SearchEstimatesTool } from "./tools/search-estimates.tool.js";
 import { CreateBillTool } from "./tools/create-bill.tool.js";
@@ -218,6 +220,7 @@ const main = async () => {
   RegisterTool(server, GetEstimateTool);
   RegisterTool(server, UpdateEstimateTool);
   RegisterTool(server, DeleteEstimateTool);
+  RegisterTool(server, SendEstimateTool);
   RegisterTool(server, SearchEstimatesTool);
   
   // Add tools for bills
@@ -243,6 +246,7 @@ const main = async () => {
 
   // Add tool to download invoice PDF
   RegisterTool(server, GetInvoicePdfTool);
+  RegisterTool(server, SendInvoiceTool);
 
   // Chart of accounts tools
   RegisterTool(server, CreateAccountTool);

@@ -32,6 +32,10 @@ export const DISABLE_ENV = {
 export const PREFIX_CATEGORY_MAP: Record<string, CrudCategory> = {
   "create_": CRUD_CATEGORY.WRITE,
   "create-": CRUD_CATEGORY.WRITE,
+  // send_* emails a document to a customer: an outward, irreversible action,
+  // so it is gated with the other write tools by QUICKBOOKS_DISABLE_WRITE.
+  "send_":   CRUD_CATEGORY.WRITE,
+  "send-":   CRUD_CATEGORY.WRITE,
   "update_": CRUD_CATEGORY.UPDATE,
   "update-": CRUD_CATEGORY.UPDATE,
   "delete_": CRUD_CATEGORY.DELETE,
@@ -61,7 +65,7 @@ export function isToolDisabled(toolName: string): boolean {
 
 /** 
  * Registers a tool with the MCP server if it is not disabled.
- * Tools are categorized by their name prefix (e.g. create_, update_, delete_).
+ * Tools are categorized by their name prefix (e.g. create_, send_, update_, delete_).
  * The corresponding environment variable (e.g. QUICKBOOKS_DISABLE_WRITE) determines if the tool is registered.
  */
 /**

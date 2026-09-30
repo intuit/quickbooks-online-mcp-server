@@ -20,6 +20,8 @@ import type { ToolDefinition } from "../../../src/types/tool-definition";
 describe("getCrudCategory", () => {
   it("returns WRITE for create_ prefix",  () => expect(getCrudCategory("create_invoice")).toBe("WRITE"));
   it("returns WRITE for create- prefix",  () => expect(getCrudCategory("create-bill")).toBe("WRITE"));
+  it("returns WRITE for send_ prefix",    () => expect(getCrudCategory("send_invoice")).toBe("WRITE"));
+  it("returns WRITE for send- prefix",    () => expect(getCrudCategory("send-estimate")).toBe("WRITE"));
   it("returns UPDATE for update_ prefix", () => expect(getCrudCategory("update_customer")).toBe("UPDATE"));
   it("returns UPDATE for update- prefix", () => expect(getCrudCategory("update-vendor")).toBe("UPDATE"));
   it("returns DELETE for delete_ prefix", () => expect(getCrudCategory("delete_payment")).toBe("DELETE"));
@@ -58,6 +60,8 @@ describe("isToolDisabled", () => {
   it("returns true for WRITE tool when QUICKBOOKS_DISABLE_WRITE=true",        () => { process.env["QUICKBOOKS_DISABLE_WRITE"]  = "true"; expect(isToolDisabled("create_invoice")).toBe(true); });
   it("returns false for WRITE tool when QUICKBOOKS_DISABLE_WRITE unset",       () => expect(isToolDisabled("create_invoice")).toBe(false));
   it("returns true for hyphen WRITE tool when QUICKBOOKS_DISABLE_WRITE=true",  () => { process.env["QUICKBOOKS_DISABLE_WRITE"]  = "true"; expect(isToolDisabled("create-bill")).toBe(true); });
+  it("returns true for send_ tool when QUICKBOOKS_DISABLE_WRITE=true",        () => { process.env["QUICKBOOKS_DISABLE_WRITE"]  = "true"; expect(isToolDisabled("send_invoice")).toBe(true); });
+  it("returns false for send_ tool when QUICKBOOKS_DISABLE_WRITE unset",       () => expect(isToolDisabled("send_invoice")).toBe(false));
 
   // UPDATE — underscore and hyphen variants, both enabled and disabled states.
   it("returns true for UPDATE tool when QUICKBOOKS_DISABLE_UPDATE=true",       () => { process.env["QUICKBOOKS_DISABLE_UPDATE"] = "true"; expect(isToolDisabled("update_customer")).toBe(true); });

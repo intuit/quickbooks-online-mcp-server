@@ -68,7 +68,7 @@ QUICKBOOKS_REFRESH_TOKEN=your_refresh_token
 QUICKBOOKS_REALM_ID=your_realm_id
 
 # Optional: restrict which tool categories are registered (default: all enabled)
-# QUICKBOOKS_DISABLE_WRITE=true    # suppress create_* tools
+# QUICKBOOKS_DISABLE_WRITE=true    # suppress create_* and send_* tools
 # QUICKBOOKS_DISABLE_UPDATE=true   # suppress update_* tools
 # QUICKBOOKS_DISABLE_DELETE=true   # suppress delete_* tools
 ```
@@ -144,6 +144,8 @@ Complete CRUD operations are available for all entity types:
 | **Company Info** | - | ✅ | ✅ | - | - |
 | **Attachable** | ✅ | ✅ | ✅ | ✅ | ✅ |
 
+Invoices and estimates can also be emailed to the customer with `send_invoice` and `send_estimate` (WRITE category, irreversible).
+
 ### Reports
 
 | Report | Tool Name | Description |
@@ -188,6 +190,7 @@ Complete CRUD operations are available for all entity types:
 | `delete_invoice` | Delete/void an invoice |
 | `search_invoices` | Search invoices with filters |
 | `get_invoice_pdf` | Download an invoice as a PDF (inline base64, or to disk when `QBO_PDF_OUTPUT_DIR` is set) |
+| `send_invoice` | Email the invoice PDF to the customer (irreversible; `send_to` overwrites the invoice BillEmail) |
 
 </details>
 
@@ -484,6 +487,7 @@ All tool names must follow the `{verb}_{entity}` convention using underscores. T
 | Prefix | Category | Suppressed by |
 |--------|----------|---------------|
 | `create_` | WRITE | `QUICKBOOKS_DISABLE_WRITE=true` |
+| `send_` | WRITE | `QUICKBOOKS_DISABLE_WRITE=true` |
 | `update_` | UPDATE | `QUICKBOOKS_DISABLE_UPDATE=true` |
 | `delete_` | DELETE | `QUICKBOOKS_DISABLE_DELETE=true` |
 | `get_`, `search_`, `read_` | READ | never |
