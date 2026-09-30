@@ -12,7 +12,7 @@ QUICKBOOKS_CLIENT_SECRET=your_client_secret
 QUICKBOOKS_ENVIRONMENT=production # or sandbox
 
 # Optional: restrict which tool categories are registered (default: all enabled)
-# QUICKBOOKS_DISABLE_WRITE=true    # suppress create_* tools
+# QUICKBOOKS_DISABLE_WRITE=true    # suppress create_* and send_* tools
 # QUICKBOOKS_DISABLE_UPDATE=true   # suppress update_* tools
 # QUICKBOOKS_DISABLE_DELETE=true   # suppress delete_* tools
 ```
