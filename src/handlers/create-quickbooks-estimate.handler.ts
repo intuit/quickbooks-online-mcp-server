@@ -20,6 +20,7 @@ export interface CreateEstimateInput {
   customer_memo?: string; // CustomerMemo (customer-facing message)
   sales_term_ref?: string; // SalesTerm id; falls back to customer default
   bill_email?: string; // BillEmail address; falls back to customer default
+  private_note?: string; // PrivateNote (internal memo, not shown to the customer)
 }
 
 // Primitive field type map (based on Quickbooks Estimate entity reference docs)
@@ -88,6 +89,7 @@ export async function createQuickbooksEstimate(data: CreateEstimateInput): Promi
       ...(data.customer_memo && { CustomerMemo: { value: data.customer_memo } }),
       ...(data.sales_term_ref && { SalesTermRef: { value: data.sales_term_ref } }),
       ...(data.bill_email && { BillEmail: { Address: data.bill_email } }),
+      ...(data.private_note && { PrivateNote: data.private_note }),
     };
 
     if (data.global_tax_calculation) {
