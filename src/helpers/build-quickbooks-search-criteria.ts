@@ -99,11 +99,15 @@ export function buildQuickbooksSearchCriteria(
   if (typeof options.offset === "number") {
     criteriaArr.push({ field: "offset", value: options.offset });
   }
-  if (options.count) {
-    criteriaArr.push({ field: "count", value: true });
-  }
   if (options.fetchAll) {
     criteriaArr.push({ field: "fetchAll", value: true });
+  }
+  // node-quickbooks detects a count request by a property *named* `count` on a criteria
+  // entry (not by `{field: "count"}`), then removes that entry with `splice(i, i + 1)`.
+  // That splice only removes exactly one entry when `i` is the last index, so the count
+  // marker must stay last in the array or it would drop the entries after it as well.
+  if (options.count) {
+    criteriaArr.push({ count: true });
   }
 
   // If nothing ended up in the array, return empty object so Quickbooks returns all items.
