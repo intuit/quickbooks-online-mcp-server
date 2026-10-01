@@ -59,8 +59,23 @@ describe('buildQuickbooksSearchCriteria – Fixes #13', () => {
 
     expect(result).toContainEqual({ field: 'desc', value: 'MetaData.CreateTime' });
     expect(result).toContainEqual({ field: 'offset', value: 5 });
-    expect(result).toContainEqual({ field: 'count', value: true });
+    // node-quickbooks only recognises a count request by a property named `count`
+    expect(result).toContainEqual({ count: true });
+    expect(result).not.toContainEqual({ field: 'count', value: true });
     expect(result).toContainEqual({ field: 'fetchAll', value: true });
+  });
+
+  it('should keep the count marker last so node-quickbooks removes only that entry (Fixes #133)', () => {
+    const input = { filters: [{ field: 'Name', value: 'A' }], limit: 5, count: true, fetchAll: true };
+    const result = buildQuickbooksSearchCriteria(input) as Array<Record<string, any>>;
+
+    expect(result[result.length - 1]).toEqual({ count: true });
+  });
+
+  it('should not emit a count entry when count is false (Fixes #133)', () => {
+    const result = buildQuickbooksSearchCriteria({ limit: 5, count: false }) as Array<Record<string, any>>;
+
+    expect(result).toEqual([{ field: 'limit', value: 5 }]);
   });
 
   it('should return empty object when advanced options are all empty', () => {

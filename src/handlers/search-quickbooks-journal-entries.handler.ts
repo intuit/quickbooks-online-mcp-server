@@ -22,7 +22,10 @@ export async function searchQuickbooksJournalEntries(params: any): Promise<ToolR
           });
         } else {
           resolve({
-            result: journalEntries,
+            result:
+              journalEntries?.QueryResponse?.JournalEntry ??
+              journalEntries?.QueryResponse?.totalCount ??
+              [],
             isError: false,
             error: null,
           });

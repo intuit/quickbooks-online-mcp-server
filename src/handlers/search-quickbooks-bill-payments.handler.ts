@@ -22,7 +22,10 @@ export async function searchQuickbooksBillPayments(params: any): Promise<ToolRes
           });
         } else {
           resolve({
-            result: billPayments,
+            result:
+              billPayments?.QueryResponse?.BillPayment ??
+              billPayments?.QueryResponse?.totalCount ??
+              [],
             isError: false,
             error: null,
           });
