@@ -27,7 +27,10 @@ export async function createQuickbooksDeposit(data: CreateDepositInput): Promise
         DetailType: "DepositLineDetail",
         DepositLineDetail: {
           AccountRef: l.account_ref ? { value: l.account_ref } : undefined,
-          Entity: l.entity_ref ? { Type: l.entity_ref.type, EntityRef: { value: l.entity_ref.value } } : undefined,
+          // QBO's actual Deposit.Line[].DepositLineDetail.Entity shape is
+          // flat ({value, type}), confirmed against a live GET response —
+          // not the nested {Type, EntityRef} shape this used to send.
+          Entity: l.entity_ref ? { value: l.entity_ref.value, type: l.entity_ref.type } : undefined,
         },
       })),
     };
