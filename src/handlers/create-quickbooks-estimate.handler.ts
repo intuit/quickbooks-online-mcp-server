@@ -2,35 +2,112 @@ import { QuickbooksClient } from "../clients/quickbooks-client.js";
 import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
 
+export interface CreateEstimateInput {
+  customer_ref: string; // customer id
+  line_items: Array<{
+    item_ref: string; // item id
+    qty: number;
+    unit_price: number;
+    description?: string;
+    tax_code_ref?: string; // TaxCode id (non-US) or TAX/NON (US)
+    service_date?: string; // YYYY-MM-DD, per-line ServiceDate
+  }>;
+  doc_number?: string;
+  txn_date?: string; // YYYY-MM-DD
+  expiration_date?: string; // YYYY-MM-DD, ExpirationDate
+  txn_status?: "Pending" | "Accepted" | "Closed" | "Rejected";
+  global_tax_calculation?: "TaxExcluded" | "TaxInclusive" | "NotApplicable";
+  customer_memo?: string; // CustomerMemo (customer-facing message)
+  sales_term_ref?: string; // SalesTerm id; falls back to customer default
+  bill_email?: string; // BillEmail address; falls back to customer default
+  private_note?: string; // PrivateNote (internal memo, not shown to the customer)
+}
+
+// Primitive field type map (based on Quickbooks Estimate entity reference docs)
+const estimateFieldTypeMap: Record<string, "string" | "number" | "boolean"> = {
+  DocNumber: "string",
+  TxnDate: "string",
+  ExpirationDate: "string",
+  TxnStatus: "string",
+  PrivateNote: "string",
+  GlobalTaxCalculation: "string",
+  TotalAmt: "number",
+};
+
 /**
- * Create an estimate in QuickBooks Online
+ * Coerce primitive estimate fields to the expected QuickBooks Online types.
  */
-export async function createQuickbooksEstimate(estimateData: any): Promise<ToolResponse<any>> {
+function normalizeEstimateFields(obj: Record<string, any>): Record<string, any> {
+  const normalized: Record<string, any> = { ...obj };
+  for (const [key, value] of Object.entries(obj)) {
+    if (value === undefined || value === null) continue;
+    const expected = estimateFieldTypeMap[key];
+    if (!expected) continue; // skip if not a primitive field we validate
+
+    switch (expected) {
+      case "string":
+        normalized[key] = String(value);
+        break;
+      /* istanbul ignore next — defensive: the payload built by
+         createQuickbooksEstimate only contains string-typed mapped fields */
+      case "number":
+        normalized[key] = typeof value === "number" ? value : Number(value);
+        break;
+      /* istanbul ignore next — defensive: same as above */
+      case "boolean":
+        normalized[key] = typeof value === "boolean" ? value : value === "true";
+        break;
+    }
+  }
+  return normalized;
+}
+
+export async function createQuickbooksEstimate(data: CreateEstimateInput): Promise<ToolResponse<any>> {
   try {
     const quickbooks = await QuickbooksClient.getInstance();
 
+    const estimatePayload: any = {
+      CustomerRef: { value: data.customer_ref },
+      Line: data.line_items.map((l, idx) => ({
+        Id: `${idx + 1}`,
+        LineNum: idx + 1,
+        Description: l.description || undefined,
+        Amount: l.qty * l.unit_price,
+        DetailType: "SalesItemLineDetail",
+        SalesItemLineDetail: {
+          ItemRef: { value: l.item_ref },
+          Qty: l.qty,
+          UnitPrice: l.unit_price,
+          TaxCodeRef: l.tax_code_ref ? { value: l.tax_code_ref } : undefined,
+          ServiceDate: l.service_date || undefined,
+        },
+      })),
+      DocNumber: data.doc_number,
+      TxnDate: data.txn_date,
+      ...(data.expiration_date && { ExpirationDate: data.expiration_date }),
+      ...(data.txn_status && { TxnStatus: data.txn_status }),
+      ...(data.customer_memo && { CustomerMemo: { value: data.customer_memo } }),
+      ...(data.sales_term_ref && { SalesTermRef: { value: data.sales_term_ref } }),
+      ...(data.bill_email && { BillEmail: { Address: data.bill_email } }),
+      ...(data.private_note && { PrivateNote: data.private_note }),
+    };
+
+    if (data.global_tax_calculation) {
+      estimatePayload.GlobalTaxCalculation = data.global_tax_calculation;
+    }
+
+    const normalizedPayload = normalizeEstimateFields(estimatePayload);
+
     return new Promise((resolve) => {
-      quickbooks.createEstimate(estimateData, (err: any, estimate: any) => {
+      (quickbooks as any).createEstimate(normalizedPayload, (err: any, created: any) => {
         if (err) {
-          resolve({
-            result: null,
-            isError: true,
-            error: formatError(err),
-          });
+          resolve({ result: null, isError: true, error: formatError(err) });
         } else {
-          resolve({
-            result: estimate,
-            isError: false,
-            error: null,
-          });
+          resolve({ result: created, isError: false, error: null });
         }
       });
     });
   } catch (error) {
-    return {
-      result: null,
-      isError: true,
-      error: formatError(error),
-    };
+    return { result: null, isError: true, error: formatError(error) };
   }
-} 
+}
