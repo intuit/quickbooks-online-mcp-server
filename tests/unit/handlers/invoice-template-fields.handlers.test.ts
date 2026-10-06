@@ -33,6 +33,23 @@ describe('Create Invoice Handler - template fields', () => {
     expect(payload.BillEmail).toEqual({ Address: 'billing@example.com' });
   });
 
+  it('should map private_note to PrivateNote and keep it out of CustomerMemo', async () => {
+    const mockInvoice = { Id: '804', TotalAmt: 100 };
+    mockQuickBooksInstance.createInvoice.mockImplementation((_payload: any, cb: any) => cb(null, mockInvoice));
+
+    const result = await createQuickbooksInvoice({
+      customer_ref: '42',
+      line_items: [{ item_ref: '1', qty: 1, unit_price: 100 }],
+      customer_memo: 'Thank you for your business.',
+      private_note: 'AI-generated draft - reviewed by JM',
+    });
+
+    expect(result.isError).toBe(false);
+    const payload = mockQuickBooksInstance.createInvoice.mock.calls[0][0] as any;
+    expect(payload.PrivateNote).toBe('AI-generated draft - reviewed by JM');
+    expect(payload.CustomerMemo).toEqual({ value: 'Thank you for your business.' });
+  });
+
   it('should map per-line service_date to SalesItemLineDetail.ServiceDate', async () => {
     const mockInvoice = { Id: '802', TotalAmt: 200 };
     mockQuickBooksInstance.createInvoice.mockImplementation((_payload: any, cb: any) => cb(null, mockInvoice));
@@ -65,6 +82,7 @@ describe('Create Invoice Handler - template fields', () => {
     expect(payload.CustomerMemo).toBeUndefined();
     expect(payload.SalesTermRef).toBeUndefined();
     expect(payload.BillEmail).toBeUndefined();
+    expect(payload).not.toHaveProperty('PrivateNote');
     expect(payload.Line[0].SalesItemLineDetail.ServiceDate).toBeUndefined();
   });
 });

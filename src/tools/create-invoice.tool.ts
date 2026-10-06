@@ -54,6 +54,13 @@ const toolSchema = z.object({
     .min(1)
     .optional()
     .describe("Billing email address (QBO BillEmail). Falls back to the customer default if omitted"),
+  private_note: z
+    .string()
+    .min(1)
+    .optional()
+    .describe(
+      "Internal memo, not shown to the customer (QBO PrivateNote). Use customer_memo for text the customer should see"
+    ),
 });
 
 const toolHandler = async ({ params }: any) => {
