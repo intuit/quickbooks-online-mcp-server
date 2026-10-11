@@ -112,6 +112,30 @@ export function unsupportedParamsWarning(
   );
 }
 
+/**
+ * Error flagging.
+ *
+ * Tool handlers report a failure as ordinary text content - "Error: ...",
+ * "Error getting customer: ...", "Invalid criteria: ..." - and never set the MCP
+ * `isError` flag. A client therefore cannot tell a failed call from a successful
+ * one without parsing prose: a health check that reads `isError` reports a
+ * rejected refresh token as healthy. RegisterTool sets the flag once, for every
+ * tool, from the handler's own first text item.
+ */
+const ERROR_TEXT_PATTERN = /^(Error\b|Invalid criteria:)/;
+
+/** True when the handler's first content item is one of the tools' error texts. */
+export function isErrorContent(content: unknown): boolean {
+  if (!Array.isArray(content) || content.length === 0) return false;
+  const first = content[0] as { type?: unknown; text?: unknown } | null;
+  return (
+    !!first &&
+    first.type === "text" &&
+    typeof first.text === "string" &&
+    ERROR_TEXT_PATTERN.test(first.text)
+  );
+}
+
 export function RegisterTool<T extends z.ZodType<any, any>>(
   server: McpServer,
   toolDefinition: ToolDefinition<T>
@@ -147,6 +171,16 @@ export function RegisterTool<T extends z.ZodType<any, any>>(
     }
 
     const result = await baseHandler(...callArgs);
+
+    try {
+      // Checked before the unsupported-parameter warning is prepended, so the
+      // handler's own first item decides. An explicit isError is left alone.
+      if (result && typeof result === "object" && result.isError === undefined && isErrorContent(result.content)) {
+        result.isError = true;
+      }
+    } catch {
+      /* diagnostics must never break a working call */
+    }
 
     try {
       if (warning && result && Array.isArray(result.content)) {

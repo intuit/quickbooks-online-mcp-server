@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach, jest } from "@jest/globals";
 import {
   getCrudCategory,
+  isErrorContent,
   isToolDisabled,
   knownParamKeys,
   permissiveParamsSchema,
@@ -236,5 +237,81 @@ describe("unsupported parameter reporting", () => {
     expect(permissive.parse({ a: "x", extra: 1 }).extra).toBe(1);
     const plain = z.string();
     expect(permissiveParamsSchema(plain)).toBe(plain);
+  });
+});
+
+// ── isErrorContent ───────────────────────────────────────────────────────────
+// Tool handlers report failures as plain text and never set isError. These pin
+// exactly which first items count as an error, using the tools' real wordings.
+
+describe("isErrorContent", () => {
+  const text = (t: string) => [{ type: "text", text: t }];
+
+  it("is true for the generic 'Error:' prefix", () =>
+    expect(isErrorContent(text("Error: Token invalid"))).toBe(true));
+  it("is true for a verb-specific error", () =>
+    expect(isErrorContent(text("Error getting customer: not found"))).toBe(true));
+  it("is true for a criteria validation failure", () =>
+    expect(isErrorContent(text("Invalid criteria: unknown field"))).toBe(true));
+  it("is false for a success text", () =>
+    expect(isErrorContent(text("Found 3 customers:"))).toBe(false));
+  it("is false for a word that merely starts with Error", () =>
+    expect(isErrorContent(text("Errors: none"))).toBe(false));
+  it("is false when only a later item is an error", () =>
+    expect(isErrorContent([{ type: "text", text: "Report:" }, { type: "text", text: "Error: x" }])).toBe(false));
+  it("is false for a non-array", () => expect(isErrorContent("Error: x")).toBe(false));
+  it("is false for an empty array", () => expect(isErrorContent([])).toBe(false));
+  it("is false for a null first item", () => expect(isErrorContent([null])).toBe(false));
+  it("is false for a non-text first item", () =>
+    expect(isErrorContent([{ type: "image", text: "Error: x" }])).toBe(false));
+  it("is false when text is not a string", () =>
+    expect(isErrorContent([{ type: "text", text: 42 }])).toBe(false));
+});
+
+// ── RegisterTool error flagging ──────────────────────────────────────────────
+// The registered handler sets isError on a handler's error text, leaves success
+// and explicit flags alone, and never lets the check break a call.
+
+describe("RegisterTool error flagging", () => {
+  const schema = z.object({ id: z.string() });
+  const register = (result: unknown) => {
+    const server = { tool: jest.fn() } as unknown as McpServer;
+    const handler = (async () => result) as unknown as ToolDefinition<typeof schema>["handler"];
+    RegisterTool(server, { name: "get_customer", description: "d", schema, handler });
+    return (server.tool as jest.Mock).mock.calls[0][3] as any;
+  };
+
+  it("sets isError on an error text", async () => {
+    const result = await register({ content: [{ type: "text", text: "Error: Token invalid" }] })({ params: { id: "1" } });
+    expect(result.isError).toBe(true);
+  });
+
+  it("does not set isError on a success text", async () => {
+    const result = await register({ content: [{ type: "text", text: "Customer:" }] })({ params: { id: "1" } });
+    expect(result.isError).toBeUndefined();
+  });
+
+  it("leaves an explicit isError: false alone", async () => {
+    const result = await register({ isError: false, content: [{ type: "text", text: "Error: x" }] })({ params: { id: "1" } });
+    expect(result.isError).toBe(false);
+  });
+
+  it("flags from the handler's own text even when a parameter warning is prepended", async () => {
+    const result = await register({ content: [{ type: "text", text: "Error: x" }] })({ params: { id: "1", stray: 1 } });
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toMatch(/^WARNING: get_customer does not support/);
+  });
+
+  it("passes through a non-object result unchanged", async () => {
+    expect(await register("Error: x")({ params: { id: "1" } })).toBe("Error: x");
+  });
+
+  it("passes through an undefined result", async () => {
+    expect(await register(undefined)({ params: { id: "1" } })).toBeUndefined();
+  });
+
+  it("never breaks a call when the result cannot be flagged", async () => {
+    const frozen = Object.freeze({ content: Object.freeze([{ type: "text", text: "Error: x" }]) });
+    await expect(register(frozen)({ params: { id: "1" } })).resolves.toBe(frozen);
   });
 });
