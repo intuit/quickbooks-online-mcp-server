@@ -323,6 +323,10 @@ If upgrading from the original Intuit implementation:
 
 ## [Unreleased]
 
+### Added
+
+- `update_deposit` accepts an optional `lines` array (`line_id`, `account_ref`, `description`) to re-categorize existing deposit lines without changing their amounts.
+
 ### Planned
 
 - Integration tests with QuickBooks sandbox

@@ -122,7 +122,7 @@ describe('Deposit and Transfer Handlers', () => {
       );
       mockQuickBooksInstance.updateDeposit.mockImplementation((payload: any, cb: any) => cb(null, {}));
 
-      const result = await updateQuickbooksDeposit({ id: '1', sync_token: '0' });
+      const result = await updateQuickbooksDeposit({ id: '1', sync_token: '0', private_note: 'note' });
 
       expect(result.isError).toBe(false);
     });
@@ -176,10 +176,213 @@ describe('Deposit and Transfer Handlers', () => {
       expect(captured.sparse).toBeUndefined();
     });
 
+    describe('line re-categorization', () => {
+      const makeDeposit = () => ({
+        Id: '7',
+        SyncToken: '2',
+        TxnDate: '2026-09-30',
+        PrivateNote: 'original note',
+        TotalAmt: 150.25,
+        DepositToAccountRef: { value: '35', name: 'Checking' },
+        Line: [
+          {
+            Id: '0',
+            LineNum: 1,
+            Amount: 100,
+            Description: 'cashback A',
+            DetailType: 'DepositLineDetail',
+            DepositLineDetail: { AccountRef: { value: '80', name: 'Uncategorized Income' }, Entity: { value: 'c1', type: 'Customer' } },
+          },
+          {
+            Id: '1',
+            LineNum: 2,
+            Amount: 50.25,
+            Description: 'interest',
+            DetailType: 'DepositLineDetail',
+            DepositLineDetail: { AccountRef: { value: '90', name: 'Interest Earned' } },
+          },
+        ],
+      });
+
+      let captured: any;
+      beforeEach(() => {
+        captured = undefined;
+        mockQuickBooksInstance.getDeposit.mockImplementation((_id: any, cb: any) => cb(null, makeDeposit()));
+        mockQuickBooksInstance.updateDeposit.mockImplementation((payload: any, cb: any) => {
+          captured = payload;
+          cb(null, payload);
+        });
+      });
+
+      it('should change only the targeted line account and drop its stale name', async () => {
+        const result = await updateQuickbooksDeposit({
+          id: '7',
+          sync_token: '2',
+          lines: [{ line_id: '0', account_ref: '99' }],
+        });
+
+        expect(result.isError).toBe(false);
+        const expected = makeDeposit();
+        (expected.Line[0].DepositLineDetail as any).AccountRef = { value: '99' };
+        expect(captured).toEqual(expected);
+        // The untouched line is identical, amounts included.
+        expect(captured.Line[1]).toEqual(makeDeposit().Line[1]);
+        expect(captured.Line.map((l: any) => l.Amount)).toEqual([100, 50.25]);
+        expect(captured.DepositToAccountRef).toEqual({ value: '35', name: 'Checking' });
+        expect(captured.TxnDate).toBe('2026-09-30');
+      });
+
+      it('should change only the description when account_ref is omitted', async () => {
+        const result = await updateQuickbooksDeposit({
+          id: '7',
+          sync_token: '2',
+          lines: [{ line_id: '1', description: 'bank interest' }],
+        });
+
+        expect(result.isError).toBe(false);
+        const expected = makeDeposit();
+        expected.Line[1].Description = 'bank interest';
+        expect(captured).toEqual(expected);
+      });
+
+      it('should change account and description together and handle several lines', async () => {
+        const result = await updateQuickbooksDeposit({
+          id: '7',
+          sync_token: '2',
+          lines: [
+            { line_id: '0', account_ref: '99', description: 'cashback' },
+            { line_id: '1', account_ref: '99' },
+          ],
+        });
+
+        expect(result.isError).toBe(false);
+        expect(captured.Line[0].DepositLineDetail.AccountRef).toEqual({ value: '99' });
+        expect(captured.Line[0].DepositLineDetail.Entity).toEqual({ value: 'c1', type: 'Customer' });
+        expect(captured.Line[0].Description).toBe('cashback');
+        expect(captured.Line[1].DepositLineDetail.AccountRef).toEqual({ value: '99' });
+        expect(captured.Line[1].Description).toBe('interest');
+      });
+
+      it('should apply lines and private_note together', async () => {
+        await updateQuickbooksDeposit({
+          id: '7',
+          sync_token: '2',
+          private_note: 'recategorized',
+          lines: [{ line_id: '0', account_ref: '99' }],
+        });
+
+        expect(captured.PrivateNote).toBe('recategorized');
+        expect(captured.Line[0].DepositLineDetail.AccountRef).toEqual({ value: '99' });
+      });
+
+      it('should keep the existing private_note when only lines are given', async () => {
+        await updateQuickbooksDeposit({ id: '7', sync_token: '2', lines: [{ line_id: '0', account_ref: '99' }] });
+
+        expect(captured.PrivateNote).toBe('original note');
+      });
+
+      it('should return an error on an unknown line_id without calling updateDeposit', async () => {
+        const result = await updateQuickbooksDeposit({
+          id: '7',
+          sync_token: '2',
+          lines: [{ line_id: 'nope', account_ref: '99' }],
+        });
+
+        expect(result.isError).toBe(true);
+        expect(result.error).toContain('nope');
+        expect(mockQuickBooksInstance.updateDeposit).not.toHaveBeenCalled();
+      });
+
+      it('should return an error on duplicate line_ids without calling updateDeposit', async () => {
+        const result = await updateQuickbooksDeposit({
+          id: '7',
+          sync_token: '2',
+          lines: [
+            { line_id: '0', account_ref: '99' },
+            { line_id: '0', description: 'again' },
+          ],
+        });
+
+        expect(result.isError).toBe(true);
+        expect(result.error).toContain('Duplicate');
+        expect(mockQuickBooksInstance.updateDeposit).not.toHaveBeenCalled();
+      });
+
+      it('should return an error on an entry with neither account_ref nor description', async () => {
+        const result = await updateQuickbooksDeposit({
+          id: '7',
+          sync_token: '2',
+          lines: [{ line_id: '0' }],
+        });
+
+        expect(result.isError).toBe(true);
+        expect(result.error).toContain('account_ref or description');
+        expect(mockQuickBooksInstance.updateDeposit).not.toHaveBeenCalled();
+      });
+
+      it('should return an error on a line edit when the deposit has no lines at all', async () => {
+        const deposit: any = makeDeposit();
+        delete deposit.Line;
+        mockQuickBooksInstance.getDeposit.mockImplementation((_id: any, cb: any) => cb(null, deposit));
+
+        const result = await updateQuickbooksDeposit({ id: '7', sync_token: '2', lines: [{ line_id: '0', account_ref: '99' }] });
+
+        expect(result.isError).toBe(true);
+        expect(mockQuickBooksInstance.updateDeposit).not.toHaveBeenCalled();
+      });
+
+      it('should return an error when account_ref targets a line that is not a DepositLineDetail line', async () => {
+        const deposit = makeDeposit();
+        (deposit.Line[1] as any).DetailType = 'SubTotalLineDetail';
+        delete (deposit.Line[1] as any).DepositLineDetail;
+        mockQuickBooksInstance.getDeposit.mockImplementation((_id: any, cb: any) => cb(null, deposit));
+
+        const result = await updateQuickbooksDeposit({
+          id: '7',
+          sync_token: '2',
+          lines: [{ line_id: '1', account_ref: '99' }],
+        });
+
+        expect(result.isError).toBe(true);
+        expect(result.error).toContain('DepositLineDetail');
+        expect(mockQuickBooksInstance.updateDeposit).not.toHaveBeenCalled();
+      });
+
+      it('should return an error when account_ref targets a line linked to another transaction', async () => {
+        const deposit = makeDeposit();
+        const linked = deposit.Line.find((l: any) => l.Id === '1') as any;
+        linked.LinkedTxn = [{ TxnId: '24', TxnType: 'Payment' }];
+        mockQuickBooksInstance.getDeposit.mockImplementation((_id: any, cb: any) => cb(null, deposit));
+
+        const result = await updateQuickbooksDeposit({
+          id: '7',
+          sync_token: '2',
+          lines: [{ line_id: '1', account_ref: '99' }],
+        });
+
+        expect(result.isError).toBe(true);
+        expect(result.error).toContain('linked');
+        expect(mockQuickBooksInstance.updateDeposit).not.toHaveBeenCalled();
+      });
+
+      it('should return an error when there is nothing to update', async () => {
+        for (const input of [
+          { id: '7', sync_token: '2' },
+          { id: '7', sync_token: '2', private_note: '' },
+          { id: '7', sync_token: '2', lines: [] },
+        ]) {
+          const result = await updateQuickbooksDeposit(input);
+          expect(result.isError).toBe(true);
+          expect(result.error).toContain('Nothing to update');
+        }
+        expect(mockQuickBooksInstance.updateDeposit).not.toHaveBeenCalled();
+      });
+    });
+
     it('should update a deposit - authentication error', async () => {
       (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
-      const result = await updateQuickbooksDeposit({ id: '1', sync_token: '0' });
+      const result = await updateQuickbooksDeposit({ id: '1', sync_token: '0', private_note: 'note' });
 
       expect(result.isError).toBe(true);
       expect(result.error).toContain('Auth failed');
@@ -190,7 +393,7 @@ describe('Deposit and Transfer Handlers', () => {
         cb(new Error('Not found'), null)
       );
 
-      const result = await updateQuickbooksDeposit({ id: '999', sync_token: '0' });
+      const result = await updateQuickbooksDeposit({ id: '999', sync_token: '0', private_note: 'note' });
 
       expect(result.isError).toBe(true);
       expect(result.error).toContain('Not found');
@@ -204,7 +407,7 @@ describe('Deposit and Transfer Handlers', () => {
         cb(new Error('Update failed'), null)
       );
 
-      const result = await updateQuickbooksDeposit({ id: '1', sync_token: '0' });
+      const result = await updateQuickbooksDeposit({ id: '1', sync_token: '0', private_note: 'note' });
 
       expect(result.isError).toBe(true);
     });
