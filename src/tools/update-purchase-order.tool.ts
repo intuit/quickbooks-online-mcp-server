@@ -3,7 +3,8 @@ import { ToolDefinition } from "../types/tool-definition.js";
 import { z } from "zod";
 
 const toolName = "update_purchase_order";
-const toolDescription = "Update an existing purchase order in QuickBooks Online.";
+const toolDescription =
+  "Updates an existing purchase order in QuickBooks Online. Changes only the fields you send; other fields are kept.";
 
 const toolSchema = z.object({
   id: z.string().min(1).describe("Purchase Order ID"),

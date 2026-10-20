@@ -3,7 +3,8 @@ import { ToolDefinition } from "../types/tool-definition.js";
 import { z } from "zod";
 
 const toolName = "update_time_activity";
-const toolDescription = "Update a time activity in QuickBooks Online.";
+const toolDescription =
+  "Updates a time activity in QuickBooks Online. Changes only the fields you send; other fields are kept.";
 const toolSchema = z.object({
   id: z.string().min(1).describe("Time Activity ID"),
   sync_token: z.string().min(1).describe("Sync token"),

@@ -37,7 +37,7 @@ const cases: Array<{
   { label: 'journal entry', idKey: 'journal_entry_id', get: 'getJournalEntry', update: 'updateJournalEntry', handler: updateQuickbooksJournalEntry, tool: UpdateJournalEntryTool, errorText: 'Error updating journal entry', successText: 'Journal entry updated' },
 ];
 
-describe.each(cases)('sparse update: $label', ({ idKey, get, update, handler, tool, errorText, successText }) => {
+describe.each(cases)('sparse update: $label', ({ label, idKey, get, update, handler, tool, errorText, successText }) => {
   const getMock = () => (mockQuickBooksInstance as any)[get];
   const updateMock = () => (mockQuickBooksInstance as any)[update];
   const existing = { Id: '9', SyncToken: '3', Notes: 'keep me', Nested: { a: 1 } };
@@ -95,7 +95,9 @@ describe.each(cases)('sparse update: $label', ({ idKey, get, update, handler, to
     expect(tool.schema.safeParse({ [idKey]: '', patch: {} }).success).toBe(false);
     expect(tool.schema.safeParse({ [idKey]: '9' }).success).toBe(false);
     expect(tool.description).toContain('Changes only the fields you send in `patch`');
-    expect(tool.description).toContain('A `Line` array replaces all lines.');
+    // Only entities that carry a Line array warn that it replaces all lines.
+    if (['customer', 'vendor', 'employee'].includes(label)) expect(tool.description).not.toContain('Line');
+    else expect(tool.description).toContain('A `Line` array replaces all lines.');
   });
 
   it('tool handler reports success and failure', async () => {

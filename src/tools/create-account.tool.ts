@@ -4,9 +4,7 @@ import { z } from "zod";
 
 const toolName = "create_account";
 const toolDescription =
-  "Create a chart‑of‑accounts entry in QuickBooks Online. " +
-  "To create a sub‑account (nested under a parent), pass parent_id with the " +
-  "parent account's Id; the new account's AccountType must match the parent's.";
+  "Creates a chart‑of‑accounts entry in QuickBooks Online. To create a sub‑account (nested under a parent), pass parent_id with the parent account's Id; the new account's AccountType must match the parent's.";
 
 const toolSchema = z.object({
   name: z.string().min(1),

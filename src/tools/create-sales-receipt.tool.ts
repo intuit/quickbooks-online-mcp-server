@@ -3,7 +3,8 @@ import { ToolDefinition } from "../types/tool-definition.js";
 import { z } from "zod";
 
 const toolName = "create_sales_receipt";
-const toolDescription = "Create a sales receipt (immediate payment sale) in QuickBooks Online.";
+const toolDescription =
+  "Creates a sales receipt (immediate payment sale) in QuickBooks Online.";
 
 const lineItemSchema = z.object({
   item_ref: z.string().min(1).describe("Item ID"),

@@ -3,7 +3,8 @@ import { ToolDefinition } from "../types/tool-definition.js";
 import { z } from "zod";
 
 const toolName = "create_department";
-const toolDescription = "Create a new department in QuickBooks Online for location/department tracking.";
+const toolDescription =
+  "Creates a new department in QuickBooks Online for location/department tracking.";
 const toolSchema = z.object({
   name: z.string().min(1).describe("Department name"),
   parent_ref: z.string().optional().describe("Parent department ID for sub-departments"),

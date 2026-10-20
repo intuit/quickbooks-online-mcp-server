@@ -75,13 +75,18 @@ export async function runConfirmedAction(opts: ConfirmedActionOptions): Promise<
 const money = (n: number) =>
   `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-/** Builds "<Entity> #<DocNumber or Id>, dated ..., total ..., <name>, <n> lines — will be <verb>". */
+/**
+ * Builds "<Entity> #<DocNumber or Id>, dated ..., total ..., <name>, <n> lines — will be <verb>".
+ * The name comes from the customer, vendor, entity or employee reference (time activities);
+ * attachables show their file name.
+ */
 export function summarizeRecord(label: string, record: any, verb: string): string {
   const parts = [`${label} #${record.DocNumber || record.Id}`];
   if (record.TxnDate) parts.push(`dated ${record.TxnDate}`);
   if (typeof record.TotalAmt === "number") parts.push(`total ${money(record.TotalAmt)}`);
-  const name = record.CustomerRef?.name ?? record.VendorRef?.name ?? record.EntityRef?.name;
+  const name = record.CustomerRef?.name ?? record.VendorRef?.name ?? record.EntityRef?.name ?? record.EmployeeRef?.name;
   if (name) parts.push(name);
+  if (record.FileName) parts.push(`file ${record.FileName}`);
   if (Array.isArray(record.Line)) parts.push(`${record.Line.length} ${record.Line.length === 1 ? "line" : "lines"}`);
   return `${parts.join(", ")} — will be ${verb}`;
 }

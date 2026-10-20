@@ -3,7 +3,8 @@ import { ToolDefinition } from "../types/tool-definition.js";
 import { z } from "zod";
 
 const toolName = "create_deposit";
-const toolDescription = "Create a bank deposit in QuickBooks Online.";
+const toolDescription =
+  "Creates a bank deposit in QuickBooks Online.";
 
 const lineItemSchema = z.object({
   amount: z.number().positive(),

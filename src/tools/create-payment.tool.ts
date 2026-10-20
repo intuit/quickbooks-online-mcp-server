@@ -3,7 +3,8 @@ import { ToolDefinition } from "../types/tool-definition.js";
 import { z } from "zod";
 
 const toolName = "create_payment";
-const toolDescription = "Create a payment (receive money from customer) in QuickBooks Online.";
+const toolDescription =
+  "Creates a payment (receive money from customer) in QuickBooks Online.";
 
 const linkedTxnSchema = z.object({
   txn_id: z.string().describe("Transaction ID to apply payment to"),

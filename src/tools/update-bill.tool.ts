@@ -4,12 +4,7 @@ import { z } from "zod";
 
 const toolName = "update-bill";
 const toolDescription =
-  "Update a bill in QuickBooks Online. Performs a read-merge-write: the current bill " +
-  "is fetched and your changes are merged over it, so line-level ClassRef/TaxCodeRef " +
-  "and any other fields you omit are preserved (QBO bill updates are full overwrites). " +
-  "Pass bill.Id plus only the fields to change. Match an existing line by its Id; a line " +
-  "without an Id is added as a new line. SyncToken is optional — the latest is fetched " +
-  "automatically.";
+  "Updates a bill in QuickBooks Online. Performs a read-merge-write: the current bill is fetched and your changes are merged over it, so line-level ClassRef/TaxCodeRef and any other fields you omit are preserved (QBO bill updates are full overwrites). Pass bill.Id plus only the fields to change. Match an existing line by its Id; a line without an Id is added as a new line. SyncToken is optional — the latest is fetched automatically.";
 
 const refSchema = z.object({
   value: z.string(),

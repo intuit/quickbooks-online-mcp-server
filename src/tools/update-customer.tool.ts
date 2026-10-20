@@ -4,8 +4,7 @@ import { z } from "zod";
 
 const toolName = "update_customer";
 const toolDescription =
-  "Update an existing customer in QuickBooks Online. Tax info fields work as in create_customer (e.g. PrimaryTaxIdentifier, DefaultTaxCodeRef); responses always return PrimaryTaxIdentifier masked. " +
-  "Changes only the fields you send in `patch`; other fields are kept. A `Line` array replaces all lines.";
+  "Updates an existing customer in QuickBooks Online. Tax info fields work as in create_customer (e.g. PrimaryTaxIdentifier, DefaultTaxCodeRef); responses always return PrimaryTaxIdentifier masked. Changes only the fields you send in `patch`; other fields are kept.";
 
 const toolSchema = z.object({
   customer_id: z.string().min(1),

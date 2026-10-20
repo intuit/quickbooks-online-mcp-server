@@ -3,7 +3,8 @@ import { ToolDefinition } from "../types/tool-definition.js";
 import { z } from "zod";
 
 const toolName = "create_item";
-const toolDescription = "Create an item in QuickBooks Online.";
+const toolDescription =
+  "Creates an item in QuickBooks Online.";
 
 const toolSchema = z.object({
   name: z.string().min(1),

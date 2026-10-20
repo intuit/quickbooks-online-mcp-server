@@ -4,7 +4,8 @@ import { z } from "zod";
 
 // Define the tool metadata
 const toolName = "create_bill_payment";
-const toolDescription = "Create a bill payment in QuickBooks Online.";
+const toolDescription =
+  "Creates a bill payment in QuickBooks Online.";
 
 // Define the expected input schema for creating a bill payment
 const toolSchema = z.object({

@@ -4,8 +4,7 @@ import { z } from "zod";
 
 const toolName = "update-vendor";
 const toolDescription =
-  "Update a vendor in QuickBooks Online. " +
-  "Changes only the fields you send in `patch`; other fields are kept. A `Line` array replaces all lines.";
+  "Updates a vendor in QuickBooks Online. Changes only the fields you send in `patch`; other fields are kept.";
 
 const toolSchema = z.object({
   vendor_id: z.string().min(1),

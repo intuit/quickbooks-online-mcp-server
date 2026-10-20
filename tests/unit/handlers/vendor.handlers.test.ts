@@ -11,7 +11,6 @@ jest.unstable_mockModule('../../../src/clients/quickbooks-client', () => ({
 const { createQuickbooksVendor } = await import('../../../src/handlers/create-quickbooks-vendor.handler');
 const { getQuickbooksVendor } = await import('../../../src/handlers/get-quickbooks-vendor.handler');
 const { updateQuickbooksVendor } = await import('../../../src/handlers/update-quickbooks-vendor.handler');
-const { deleteQuickbooksVendor } = await import('../../../src/handlers/delete-quickbooks-vendor.handler');
 const { searchQuickbooksVendors } = await import('../../../src/handlers/search-quickbooks-vendors.handler');
 
 describe('Vendor Handlers', () => {
@@ -113,37 +112,6 @@ describe('Vendor Handlers', () => {
       (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await updateQuickbooksVendor({ vendor_id: '56', patch: {} });
-
-      expect(result.isError).toBe(true);
-      expect(result.error).toContain('Error: Auth failed');
-    });
-  });
-
-  describe('deleteQuickbooksVendor', () => {
-    it('should delete a vendor', async () => {
-      const mockDeleted = { Id: '56', status: 'Deleted' };
-      mockQuickBooksInstance.deleteVendor.mockImplementation((_payload: any, cb: any) => cb(null, mockDeleted));
-
-      const result = await deleteQuickbooksVendor({ Id: '56', SyncToken: '0' });
-
-      expect(result.isError).toBe(false);
-      expect(result.result).toEqual(mockDeleted);
-    });
-
-    it('should handle API errors', async () => {
-      mockQuickBooksInstance.deleteVendor.mockImplementation((_payload: any, cb: any) =>
-        cb(new Error('Delete failed'), null)
-      );
-
-      const result = await deleteQuickbooksVendor({ Id: '56', SyncToken: '0' });
-
-      expect(result.isError).toBe(true);
-    });
-
-    it('should handle authentication errors', async () => {
-      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
-
-      const result = await deleteQuickbooksVendor({ Id: '56', SyncToken: '0' });
 
       expect(result.isError).toBe(true);
       expect(result.error).toContain('Error: Auth failed');

@@ -3,7 +3,8 @@ import { ToolDefinition } from "../types/tool-definition.js";
 import { z } from "zod";
 
 const toolName = "update_item";
-const toolDescription = "Update an existing item in Quickbooks by ID (sparse update).";
+const toolDescription =
+  "Updates an existing item in QuickBooks Online by ID. Changes only the fields you send; other fields are kept.";
 
 const toolSchema = z.object({
   item_id: z.string().min(1),

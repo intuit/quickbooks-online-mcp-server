@@ -4,8 +4,7 @@ import { z } from "zod";
 
 const toolName = "update_bill_payment";
 const toolDescription =
-  "Update a bill payment in QuickBooks Online. " +
-  "Changes only the fields you send in `patch`; other fields are kept. A `Line` array replaces all lines.";
+  "Updates a bill payment in QuickBooks Online. Changes only the fields you send in `patch`; other fields are kept. A `Line` array replaces all lines.";
 
 const toolSchema = z.object({
   bill_payment_id: z.string().min(1),

@@ -5,7 +5,7 @@ import { globalTaxCalculationSchema, vendorCreditLineItemSchema } from "./create
 
 const toolName = "update_vendor_credit";
 const toolDescription =
-  "Update a vendor credit in QuickBooks Online. Providing line_items REPLACES the entire line array (fetch the current vendor credit first if you only want to modify one line); lines support per-line tax_code_ref and class_ref like bills.";
+  "Updates a vendor credit in QuickBooks Online. Changes only the fields you send; other fields are kept. Providing line_items REPLACES the entire line array (fetch the current vendor credit first if you only want to modify one line); lines support per-line tax_code_ref and class_ref like bills.";
 
 const toolSchema = z.object({
   id: z.string().min(1).describe("Vendor Credit ID"),

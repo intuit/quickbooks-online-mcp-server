@@ -3,7 +3,8 @@ import { ToolDefinition } from "../types/tool-definition.js";
 import { z } from "zod";
 
 const toolName = "create_time_activity";
-const toolDescription = "Create a time activity (time tracking entry) in QuickBooks Online.";
+const toolDescription =
+  "Creates a time activity (time tracking entry) in QuickBooks Online.";
 const toolSchema = z.object({
   name_of: z.enum(["Vendor", "Employee"]).describe("Whether time is for vendor or employee"),
   vendor_ref: z.string().optional().describe("Vendor ID (if name_of is Vendor)"),

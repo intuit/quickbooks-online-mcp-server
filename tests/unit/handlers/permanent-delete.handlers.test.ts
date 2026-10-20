@@ -149,6 +149,15 @@ describe.each(cases)('permanent delete: $label', ({ name, entity, toolName, hand
 });
 
 describe('summarizeRecord edge cases', () => {
+  it('names the employee on time activities and the file on attachables', () => {
+    expect(summarizeRecord('Time activity', { Id: '3', TxnDate: '2026-03-04', EmployeeRef: { name: 'Pat Lee' } }, 'deleted'))
+      .toBe('Time activity #3, dated 2026-03-04, Pat Lee — will be deleted');
+    expect(summarizeRecord('Attachable', { Id: '4', FileName: 'receipt.pdf' }, 'deleted'))
+      .toBe('Attachable #4, file receipt.pdf — will be deleted');
+    expect(summarizeRecord('X', { Id: '5', CustomerRef: { name: 'Acme' }, EmployeeRef: { name: 'Pat' } }, 'deleted'))
+      .toBe('X #5, Acme — will be deleted');
+  });
+
   it('pluralises lines and treats an empty DocNumber like a missing one', () => {
     expect(summarizeRecord('X', { Id: '7', Line: [{}] }, 'deleted')).toBe('X #7, 1 line — will be deleted');
     expect(summarizeRecord('X', { Id: '7', Line: [{}, {}] }, 'deleted')).toBe('X #7, 2 lines — will be deleted');

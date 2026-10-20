@@ -4,8 +4,7 @@ import { z } from "zod";
 
 const toolName = "update_purchase";
 const toolDescription =
-  "Update a purchase (expense, check or credit card charge) in QuickBooks Online. " +
-  "Changes only the fields you send in `patch`; other fields are kept. A `Line` array replaces all lines.";
+  "Updates a purchase (expense, check or credit card charge) in QuickBooks Online. Changes only the fields you send in `patch`; other fields are kept. A `Line` array replaces all lines.";
 
 const toolSchema = z.object({
   purchase_id: z.string().min(1),
