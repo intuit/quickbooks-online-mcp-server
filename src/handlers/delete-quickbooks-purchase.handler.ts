@@ -1,37 +1,27 @@
 import { QuickbooksClient } from "../clients/quickbooks-client.js";
 import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
+import { promisify, runConfirmedAction, summarizeRecord } from "../helpers/confirm-flow.js";
 
 /**
- * Delete (make inactive) a purchase in QuickBooks Online
- * @param idOrEntity The purchase ID or entity to delete
+ * Permanently delete a purchase (two-step: summary + code, then delete).
  */
-export async function deleteQuickbooksPurchase(idOrEntity: any): Promise<ToolResponse<any>> {
+export async function deleteQuickbooksPurchase(input: {
+  id: string;
+  confirmation_code?: string;
+}): Promise<ToolResponse<any>> {
   try {
-    const quickbooks = await QuickbooksClient.getInstance();
-
-    return new Promise((resolve) => {
-      quickbooks.deletePurchase(idOrEntity, (err: any, purchase: any) => {
-        if (err) {
-          resolve({
-            result: null,
-            isError: true,
-            error: formatError(err),
-          });
-        } else {
-          resolve({
-            result: purchase,
-            isError: false,
-            error: null,
-          });
-        }
-      });
+    const quickbooks: any = await QuickbooksClient.getInstance();
+    return runConfirmedAction({
+      entity: "purchase",
+      id: input.id,
+      confirmationCode: input.confirmation_code,
+      action: "delete",
+      fetch: (id) => promisify((cb) => quickbooks.getPurchase(id, cb)),
+      summarize: (r) => summarizeRecord("Purchase", r, "permanently deleted"),
+      perform: (r) => promisify((cb) => quickbooks.deletePurchase(r, cb)),
     });
   } catch (error) {
-    return {
-      result: null,
-      isError: true,
-      error: formatError(error),
-    };
+    return { result: null, isError: true, error: formatError(error) };
   }
-} 
+}

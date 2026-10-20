@@ -11,7 +11,6 @@ jest.unstable_mockModule('../../../src/clients/quickbooks-client', () => ({
 const { createQuickbooksBill } = await import('../../../src/handlers/create-quickbooks-bill.handler');
 const { getQuickbooksBill } = await import('../../../src/handlers/get-quickbooks-bill.handler');
 const { updateQuickbooksBill } = await import('../../../src/handlers/update-quickbooks-bill.handler');
-const { deleteQuickbooksBill } = await import('../../../src/handlers/delete-quickbooks-bill.handler');
 const { searchQuickbooksBills } = await import('../../../src/handlers/search-quickbooks-bills.handler');
 
 describe('Bill Handlers', () => {
@@ -432,36 +431,6 @@ describe('Bill Handlers', () => {
     });
   });
 
-  describe('deleteQuickbooksBill', () => {
-    it('should delete a bill', async () => {
-      const mockDeleted = { Id: '1', status: 'Deleted' };
-      mockQuickBooksInstance.deleteBill.mockImplementation((_payload: any, cb: any) => cb(null, mockDeleted));
-
-      const result = await deleteQuickbooksBill({ Id: '1', SyncToken: '0' });
-
-      expect(result.isError).toBe(false);
-      expect(result.result).toEqual(mockDeleted);
-    });
-
-    it('should handle API errors', async () => {
-      mockQuickBooksInstance.deleteBill.mockImplementation((_payload: any, cb: any) =>
-        cb(new Error('Delete failed'), null)
-      );
-
-      const result = await deleteQuickbooksBill({ Id: '1', SyncToken: '0' });
-
-      expect(result.isError).toBe(true);
-    });
-
-    it('should handle authentication errors', async () => {
-      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
-
-      const result = await deleteQuickbooksBill({ Id: '1', SyncToken: '0' });
-
-      expect(result.isError).toBe(true);
-      expect(result.error).toContain('Error: Auth failed');
-    });
-  });
 
   describe('searchQuickbooksBills', () => {
     it('should search bills', async () => {

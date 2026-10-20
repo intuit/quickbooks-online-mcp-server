@@ -77,12 +77,12 @@ const money = (n: number) =>
 
 /** Builds "<Entity> #<DocNumber or Id>, dated ..., total ..., <name>, <n> lines — will be <verb>". */
 export function summarizeRecord(label: string, record: any, verb: string): string {
-  const parts = [`${label} #${record.DocNumber ?? record.Id}`];
+  const parts = [`${label} #${record.DocNumber || record.Id}`];
   if (record.TxnDate) parts.push(`dated ${record.TxnDate}`);
   if (typeof record.TotalAmt === "number") parts.push(`total ${money(record.TotalAmt)}`);
   const name = record.CustomerRef?.name ?? record.VendorRef?.name ?? record.EntityRef?.name;
   if (name) parts.push(name);
-  if (Array.isArray(record.Line)) parts.push(`${record.Line.length} lines`);
+  if (Array.isArray(record.Line)) parts.push(`${record.Line.length} ${record.Line.length === 1 ? "line" : "lines"}`);
   return `${parts.join(", ")} — will be ${verb}`;
 }
 

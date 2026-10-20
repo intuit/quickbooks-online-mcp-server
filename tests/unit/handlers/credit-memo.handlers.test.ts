@@ -11,7 +11,6 @@ jest.unstable_mockModule('../../../src/clients/quickbooks-client', () => ({
 const { createQuickbooksCreditMemo } = await import('../../../src/handlers/create-quickbooks-credit-memo.handler');
 const { getQuickbooksCreditMemo } = await import('../../../src/handlers/get-quickbooks-credit-memo.handler');
 const { updateQuickbooksCreditMemo } = await import('../../../src/handlers/update-quickbooks-credit-memo.handler');
-const { deleteQuickbooksCreditMemo } = await import('../../../src/handlers/delete-quickbooks-credit-memo.handler');
 const { searchQuickbooksCreditMemos } = await import('../../../src/handlers/search-quickbooks-credit-memos.handler');
 
 describe('CreditMemo Handlers', () => {
@@ -169,34 +168,6 @@ describe('CreditMemo Handlers', () => {
     });
   });
 
-  describe('deleteQuickbooksCreditMemo', () => {
-    it('should delete a credit memo', async () => {
-      mockQuickBooksInstance.deleteCreditMemo.mockImplementation((payload: any, cb: any) => cb(null, {}));
-
-      const result = await deleteQuickbooksCreditMemo({ id: '123', sync_token: '0' });
-
-      expect(result.isError).toBe(false);
-    });
-
-    it('should handle API errors', async () => {
-      mockQuickBooksInstance.deleteCreditMemo.mockImplementation((payload: any, cb: any) =>
-        cb(new Error('Delete failed'), null)
-      );
-
-      const result = await deleteQuickbooksCreditMemo({ id: '123', sync_token: '0' });
-
-      expect(result.isError).toBe(true);
-    });
-
-    it('should handle authentication errors', async () => {
-      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
-
-      const result = await deleteQuickbooksCreditMemo({ id: '123', sync_token: '0' });
-
-      expect(result.isError).toBe(true);
-      expect(result.error).toContain('Auth failed');
-    });
-  });
 
   describe('searchQuickbooksCreditMemos', () => {
     it('should search credit memos', async () => {

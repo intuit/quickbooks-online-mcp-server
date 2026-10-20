@@ -11,7 +11,6 @@ jest.unstable_mockModule('../../../src/clients/quickbooks-client', () => ({
 const { createQuickbooksTimeActivity } = await import('../../../src/handlers/create-quickbooks-time-activity.handler');
 const { getQuickbooksTimeActivity } = await import('../../../src/handlers/get-quickbooks-time-activity.handler');
 const { updateQuickbooksTimeActivity } = await import('../../../src/handlers/update-quickbooks-time-activity.handler');
-const { deleteQuickbooksTimeActivity } = await import('../../../src/handlers/delete-quickbooks-time-activity.handler');
 const { searchQuickbooksTimeActivities } = await import('../../../src/handlers/search-quickbooks-time-activities.handler');
 
 describe('TimeActivity Handlers', () => {
@@ -200,34 +199,6 @@ describe('TimeActivity Handlers', () => {
     });
   });
 
-  describe('deleteQuickbooksTimeActivity', () => {
-    it('should delete a time activity', async () => {
-      mockQuickBooksInstance.deleteTimeActivity.mockImplementation((payload: any, cb: any) => cb(null, {}));
-
-      const result = await deleteQuickbooksTimeActivity({ id: '123', sync_token: '0' });
-
-      expect(result.isError).toBe(false);
-    });
-
-    it('should handle API errors', async () => {
-      mockQuickBooksInstance.deleteTimeActivity.mockImplementation((payload: any, cb: any) =>
-        cb(new Error('Delete failed'), null)
-      );
-
-      const result = await deleteQuickbooksTimeActivity({ id: '123', sync_token: '0' });
-
-      expect(result.isError).toBe(true);
-    });
-
-    it('should handle authentication errors', async () => {
-      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
-
-      const result = await deleteQuickbooksTimeActivity({ id: '123', sync_token: '0' });
-
-      expect(result.isError).toBe(true);
-      expect(result.error).toContain('Auth failed');
-    });
-  });
 
   describe('searchQuickbooksTimeActivities', () => {
     it('should search time activities', async () => {

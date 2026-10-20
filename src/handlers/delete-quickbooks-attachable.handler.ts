@@ -1,25 +1,27 @@
 import { QuickbooksClient } from "../clients/quickbooks-client.js";
 import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
+import { promisify, runConfirmedAction, summarizeRecord } from "../helpers/confirm-flow.js";
 
-export interface DeleteAttachableInput {
+/**
+ * Permanently delete a attachable (two-step: summary + code, then delete).
+ */
+export async function deleteQuickbooksAttachable(input: {
   id: string;
-  sync_token: string;
-}
-
-export async function deleteQuickbooksAttachable(data: DeleteAttachableInput): Promise<ToolResponse<any>> {
+  confirmation_code?: string;
+}): Promise<ToolResponse<any>> {
   try {
-    const quickbooks = await QuickbooksClient.getInstance();
-    const payload = { Id: data.id, SyncToken: data.sync_token };
-
-    return new Promise((resolve) => {
-      (quickbooks as any).deleteAttachable(payload, (err: any, result: any) => {
-        if (err) resolve({ result: null, isError: true, error: formatError(err) });
-        else resolve({ result: result, isError: false, error: null });
-      });
+    const quickbooks: any = await QuickbooksClient.getInstance();
+    return runConfirmedAction({
+      entity: "attachable",
+      id: input.id,
+      confirmationCode: input.confirmation_code,
+      action: "delete",
+      fetch: (id) => promisify((cb) => quickbooks.getAttachable(id, cb)),
+      summarize: (r) => summarizeRecord("Attachable", r, "permanently deleted"),
+      perform: (r) => promisify((cb) => quickbooks.deleteAttachable(r, cb)),
     });
   } catch (error) {
     return { result: null, isError: true, error: formatError(error) };
   }
 }
-
