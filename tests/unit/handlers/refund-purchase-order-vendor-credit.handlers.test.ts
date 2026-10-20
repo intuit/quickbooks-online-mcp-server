@@ -11,7 +11,6 @@ jest.unstable_mockModule('../../../src/clients/quickbooks-client', () => ({
 const { createQuickbooksRefundReceipt } = await import('../../../src/handlers/create-quickbooks-refund-receipt.handler');
 const { getQuickbooksRefundReceipt } = await import('../../../src/handlers/get-quickbooks-refund-receipt.handler');
 const { updateQuickbooksRefundReceipt } = await import('../../../src/handlers/update-quickbooks-refund-receipt.handler');
-const { deleteQuickbooksRefundReceipt } = await import('../../../src/handlers/delete-quickbooks-refund-receipt.handler');
 const { searchQuickbooksRefundReceipts } = await import('../../../src/handlers/search-quickbooks-refund-receipts.handler');
 const { createQuickbooksPurchaseOrder } = await import('../../../src/handlers/create-quickbooks-purchase-order.handler');
 const { getQuickbooksPurchaseOrder } = await import('../../../src/handlers/get-quickbooks-purchase-order.handler');
@@ -167,33 +166,6 @@ describe('Refund, PurchaseOrder, VendorCredit Handlers', () => {
       );
 
       const result = await updateQuickbooksRefundReceipt({ id: '1', sync_token: '0' });
-
-      expect(result.isError).toBe(true);
-    });
-
-    it('should delete a refund receipt', async () => {
-      mockQuickBooksInstance.deleteRefundReceipt.mockImplementation((payload: any, cb: any) => cb(null, {}));
-
-      const result = await deleteQuickbooksRefundReceipt({ id: '1', sync_token: '0' });
-
-      expect(result.isError).toBe(false);
-    });
-
-    it('should delete a refund receipt - authentication error', async () => {
-      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
-
-      const result = await deleteQuickbooksRefundReceipt({ id: '1', sync_token: '0' });
-
-      expect(result.isError).toBe(true);
-      expect(result.error).toContain('Auth failed');
-    });
-
-    it('should delete a refund receipt - API error', async () => {
-      mockQuickBooksInstance.deleteRefundReceipt.mockImplementation((payload: any, cb: any) =>
-        cb(new Error('Delete failed'), null)
-      );
-
-      const result = await deleteQuickbooksRefundReceipt({ id: '1', sync_token: '0' });
 
       expect(result.isError).toBe(true);
     });

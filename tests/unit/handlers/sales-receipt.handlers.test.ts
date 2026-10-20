@@ -11,7 +11,6 @@ jest.unstable_mockModule('../../../src/clients/quickbooks-client', () => ({
 const { createQuickbooksSalesReceipt } = await import('../../../src/handlers/create-quickbooks-sales-receipt.handler');
 const { getQuickbooksSalesReceipt } = await import('../../../src/handlers/get-quickbooks-sales-receipt.handler');
 const { updateQuickbooksSalesReceipt } = await import('../../../src/handlers/update-quickbooks-sales-receipt.handler');
-const { deleteQuickbooksSalesReceipt } = await import('../../../src/handlers/delete-quickbooks-sales-receipt.handler');
 const { searchQuickbooksSalesReceipts } = await import('../../../src/handlers/search-quickbooks-sales-receipts.handler');
 
 describe('SalesReceipt Handlers', () => {
@@ -170,34 +169,6 @@ describe('SalesReceipt Handlers', () => {
     });
   });
 
-  describe('deleteQuickbooksSalesReceipt', () => {
-    it('should void a sales receipt', async () => {
-      mockQuickBooksInstance.deleteSalesReceipt.mockImplementation((payload: any, cb: any) => cb(null, {}));
-
-      const result = await deleteQuickbooksSalesReceipt({ id: '123', sync_token: '0' });
-
-      expect(result.isError).toBe(false);
-    });
-
-    it('should handle API errors', async () => {
-      mockQuickBooksInstance.deleteSalesReceipt.mockImplementation((payload: any, cb: any) =>
-        cb(new Error('Delete failed'), null)
-      );
-
-      const result = await deleteQuickbooksSalesReceipt({ id: '123', sync_token: '0' });
-
-      expect(result.isError).toBe(true);
-    });
-
-    it('should handle authentication errors', async () => {
-      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
-
-      const result = await deleteQuickbooksSalesReceipt({ id: '123', sync_token: '0' });
-
-      expect(result.isError).toBe(true);
-      expect(result.error).toContain('Auth failed');
-    });
-  });
 
   describe('searchQuickbooksSalesReceipts', () => {
     it('should search sales receipts', async () => {

@@ -8,6 +8,12 @@ jest.unstable_mockModule('../../../src/clients/quickbooks-client', () => ({
 
 const { deleteQuickbooksInvoice } = await import('../../../src/handlers/delete-quickbooks-invoice.handler');
 const { deleteQuickbooksPayment } = await import('../../../src/handlers/delete-quickbooks-payment.handler');
+const { deleteQuickbooksSalesReceipt } = await import('../../../src/handlers/delete-quickbooks-sales-receipt.handler');
+const { deleteQuickbooksBillPayment } = await import('../../../src/handlers/delete-quickbooks-bill-payment.handler');
+const { deleteQuickbooksRefundReceipt } = await import('../../../src/handlers/delete-quickbooks-refund-receipt.handler');
+const { DeleteSalesReceiptTool } = await import('../../../src/tools/delete-sales-receipt.tool');
+const { DeleteBillPaymentTool } = await import('../../../src/tools/delete-bill-payment.tool');
+const { DeleteRefundReceiptTool } = await import('../../../src/tools/delete-refund-receipt.tool');
 const { DeleteInvoiceTool } = await import('../../../src/tools/delete-invoice.tool');
 const { DeletePaymentTool } = await import('../../../src/tools/delete-payment.tool');
 const { runConfirmedAction, summarizeRecord } = await import('../../../src/helpers/confirm-flow');
@@ -23,6 +29,33 @@ const cases: Array<{ label: string; get: string; voidFn: string; handler: any; t
     record: { Id: '9', SyncToken: '3', TxnDate: '2026-01-02', TotalAmt: 50, CustomerRef: { name: 'Acme' } },
   },
 ];
+
+const updateCases: Array<{ label: string; get: string; update: string; del: string; handler: any; tool: any; entity: string }> = [
+  { label: 'sales receipt', get: 'getSalesReceipt', update: 'updateSalesReceipt', del: 'deleteSalesReceipt', handler: deleteQuickbooksSalesReceipt, tool: DeleteSalesReceiptTool, entity: 'salesReceipt' },
+  { label: 'bill payment', get: 'getBillPayment', update: 'updateBillPayment', del: 'deleteBillPayment', handler: deleteQuickbooksBillPayment, tool: DeleteBillPaymentTool, entity: 'billPayment' },
+  { label: 'refund receipt', get: 'getRefundReceipt', update: 'updateRefundReceipt', del: 'deleteRefundReceipt', handler: deleteQuickbooksRefundReceipt, tool: DeleteRefundReceiptTool, entity: 'refundReceipt' },
+];
+for (const u of updateCases) {
+  cases.push({
+    label: u.label, get: u.get, voidFn: u.update, handler: u.handler, tool: u.tool, entity: u.entity,
+    record: { Id: '9', SyncToken: '3', TxnDate: '2026-01-02', TotalAmt: 75, CustomerRef: { name: 'Acme' } },
+  });
+}
+
+describe.each(updateCases)('void via update+include=void: $label', ({ get, update, del, handler }) => {
+  it('sends Id, SyncToken, sparse:true, void:true and never deletes', async () => {
+    resetAllMocks();
+    _resetConfirmationState();
+    (mockQuickBooksInstance as any)[get].mockImplementation((_i: any, cb: any) => cb(null, { Id: '9', SyncToken: '3', TotalAmt: 5 }));
+    (mockQuickBooksInstance as any)[update].mockImplementation((p: any, cb: any) => cb(null, p));
+    const first = await handler({ id: '9' });
+    expect(first.result.summary).toContain('will be voided');
+    await handler({ id: '9', confirmation_code: first.result.confirmation_code });
+    expect((mockQuickBooksInstance as any)[update]).toHaveBeenCalledTimes(1);
+    expect((mockQuickBooksInstance as any)[update].mock.calls[0][0]).toEqual({ Id: '9', SyncToken: '3', sparse: true, void: true });
+    expect((mockQuickBooksInstance as any)[del]).not.toHaveBeenCalled();
+  });
+});
 
 describe.each(cases)('void: $label', ({ get, voidFn, handler, tool, entity, record }) => {
   const getMock = () => (mockQuickBooksInstance as any)[get];
