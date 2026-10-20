@@ -55,7 +55,6 @@ declare module 'node-quickbooks' {
     }, callback: (err: any, vendors: any) => void): void;
     createVendor(vendor: object, callback: (err: any, vendor: any) => void): void;
     updateVendor(vendor: object, callback: (err: any, vendor: any) => void): void;
-    deleteVendor(vendor: object, callback: (err: any, vendor: any) => void): void;
     getVendor(id: string, callback: (err: any, vendor: any) => void): void;
 
     // Employee CRUD

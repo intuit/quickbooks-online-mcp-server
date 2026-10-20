@@ -40,7 +40,6 @@ export const mockQuickBooksInstance = {
   createVendor: jest.fn(),
   getVendor: jest.fn(),
   updateVendor: jest.fn(),
-  deleteVendor: jest.fn(),
   findVendors: jest.fn(),
 
   // Employee methods

@@ -3,7 +3,7 @@ import { ToolDefinition } from "../types/tool-definition.js";
 import { z } from "zod";
 
 const toolName = "delete-vendor";
-const toolDescription = "Delete a vendor in QuickBooks Online.";
+const toolDescription = "Delete (make inactive) a vendor in QuickBooks Online.";
 const toolSchema = z.object({
   vendor: z.object({
     Id: z.string(),
