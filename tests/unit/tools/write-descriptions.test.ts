@@ -9,16 +9,14 @@ const files = readdirSync(toolsDir).filter((f) => f.endsWith('.tool.ts')).sort()
 // importing it: importing every tool would drag all handlers into coverage. Every
 // tool file declares `const toolName = "..."` and `const toolDescription = "..." + "...";`.
 const literal = /"(?:[^"\\]|\\.)*"/g;
-const tools: Array<{ name: string; description: string }> = [];
-for (const f of files) {
-  const src = readFileSync(join(toolsDir, f), 'utf8');
+function parseTool(src: string): { name: string; description: string } | null {
   const name = src.match(/const toolName = ("(?:[^"\\]|\\.)*");/);
   const desc = src.match(/const toolDescription =\s*((?:"(?:[^"\\]|\\.)*"\s*\+?\s*)+);/);
-  if (!name || !desc) continue; // tools that declare these differently are not write tools
-  tools.push({
+  if (!name || !desc) return null;
+  return {
     name: JSON.parse(name[1]),
     description: (desc[1].match(literal) as string[]).map((l) => JSON.parse(l)).join(''),
-  });
+  };
 }
 
 // The tools src/index.ts actually registers, cross-checked against the list above.
@@ -28,6 +26,21 @@ const importPaths = new Map<string, string>();
 for (const m of indexSrc.matchAll(/^import \{ (\w+) \} from "\.\/tools\/([\w-]+)\.tool\.js";/gm)) importPaths.set(m[1], m[2]);
 const registeredFiles = registeredIdentifiers.map((id) => importPaths.get(id)).filter(Boolean) as string[];
 
+// Every tool file src/index.ts registers MUST parse; an unparsable one fails the guard
+// (naming the file) instead of being skipped.
+const unparsable: string[] = [];
+const tools: Array<{ name: string; description: string }> = [];
+for (const f of registeredFiles) {
+  const parsed = parseTool(readFileSync(join(toolsDir, `${f}.tool.ts`), 'utf8'));
+  if (parsed) tools.push(parsed);
+  else unparsable.push(`${f}.tool.ts`);
+}
+
+// Verbs of the 142 tools registered today. A tool with any other verb (void_, send_,
+// upsert_ ...) must be classified deliberately, not slip past the write checks.
+const KNOWN_VERBS = ['create', 'update', 'delete', 'get', 'search', 'read'];
+const verbOf = (n: string) => n.split(/[_-]/)[0];
+
 const isWrite = (n: string) => /^(create|update|delete)[_-]/.test(n);
 const writeTools = tools.filter((t) => isWrite(t.name));
 const lc = (t: { description: string }) => t.description.toLowerCase();
@@ -36,6 +49,14 @@ const VOIDS = ['delete_invoice', 'delete_payment', 'delete_sales_receipt', 'dele
 const INACTIVATES = ['delete_customer', 'delete-vendor', 'delete_item', 'delete_employee'];
 
 describe('write tool descriptions', () => {
+  it('parses every registered tool and knows every verb', () => {
+    expect(registeredFiles.length).toBe(registeredIdentifiers.length);
+    expect(unparsable).toEqual([]);
+    expect(tools.length).toBe(registeredFiles.length);
+    const unknown = tools.filter((t) => !KNOWN_VERBS.includes(verbOf(t.name))).map((t) => t.name);
+    expect(unknown).toEqual([]);
+  });
+
   it('covers every registered tool', () => {
     expect(registeredFiles.length).toBeGreaterThan(100);
     const loaded = new Set(files.map((f) => f.replace(/\.tool\.ts$/, '')));
