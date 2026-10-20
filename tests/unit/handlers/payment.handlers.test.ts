@@ -11,7 +11,6 @@ jest.unstable_mockModule('../../../src/clients/quickbooks-client', () => ({
 const { createQuickbooksPayment } = await import('../../../src/handlers/create-quickbooks-payment.handler');
 const { getQuickbooksPayment } = await import('../../../src/handlers/get-quickbooks-payment.handler');
 const { updateQuickbooksPayment } = await import('../../../src/handlers/update-quickbooks-payment.handler');
-const { deleteQuickbooksPayment } = await import('../../../src/handlers/delete-quickbooks-payment.handler');
 const { searchQuickbooksPayments } = await import('../../../src/handlers/search-quickbooks-payments.handler');
 
 describe('Payment Handlers', () => {
@@ -211,38 +210,6 @@ describe('Payment Handlers', () => {
       (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
       const result = await updateQuickbooksPayment({ id: '123', sync_token: '0', total_amt: 150 });
-
-      expect(result.isError).toBe(true);
-      expect(result.error).toContain('Auth failed');
-    });
-  });
-
-  describe('deleteQuickbooksPayment', () => {
-    it('should void a payment', async () => {
-      const mockVoided = { Id: '123', status: 'Voided' };
-      (mockQuickBooksInstance.deletePayment as jest.Mock).mockImplementation(
-        (_payload: any, cb: any) => cb(null, mockVoided)
-      );
-
-      const result = await deleteQuickbooksPayment({ id: '123', sync_token: '0' });
-
-      expect(result.isError).toBe(false);
-    });
-
-    it('should handle API errors', async () => {
-      (mockQuickBooksInstance.deletePayment as jest.Mock).mockImplementation(
-        (_payload: any, cb: any) => cb(new Error('Delete failed'), null)
-      );
-
-      const result = await deleteQuickbooksPayment({ id: '123', sync_token: '0' });
-
-      expect(result.isError).toBe(true);
-    });
-
-    it('should handle authentication errors', async () => {
-      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
-
-      const result = await deleteQuickbooksPayment({ id: '123', sync_token: '0' });
 
       expect(result.isError).toBe(true);
       expect(result.error).toContain('Auth failed');

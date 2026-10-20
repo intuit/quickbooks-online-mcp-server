@@ -18,6 +18,7 @@ export const mockQuickBooksInstance = {
   getInvoice: jest.fn(),
   updateInvoice: jest.fn(),
   deleteInvoice: jest.fn(),
+  voidInvoice: jest.fn(),
   findInvoices: jest.fn(),
   getInvoicePdf: jest.fn(),
 
@@ -89,6 +90,7 @@ export const mockQuickBooksInstance = {
   getPayment: jest.fn(),
   updatePayment: jest.fn(),
   deletePayment: jest.fn(),
+  voidPayment: jest.fn(),
   findPayments: jest.fn(),
 
   // SalesReceipt methods
