@@ -2,20 +2,18 @@ import { updateQuickbooksPurchase } from "../handlers/update-quickbooks-purchase
 import { ToolDefinition } from "../types/tool-definition.js";
 import { z } from "zod";
 
-// Define the tool metadata
 const toolName = "update_purchase";
-const toolDescription = "Update a purchase in QuickBooks Online.";
+const toolDescription =
+  "Update a purchase (expense, check or credit card charge) in QuickBooks Online. " +
+  "Changes only the fields you send in `patch`; other fields are kept. A `Line` array replaces all lines.";
 
-// Define the expected input schema for updating a purchase
 const toolSchema = z.object({
-  purchase: z.any(),
+  purchase_id: z.string().min(1),
+  patch: z.record(z.any()),
 });
 
-type ToolParams = z.infer<typeof toolSchema>;
-
-// Define the tool handler
-const toolHandler = async (args: any) => {
-  const response = await updateQuickbooksPurchase(args.params.purchase);
+const toolHandler = async ({ params }: any) => {
+  const response = await updateQuickbooksPurchase(params);
 
   if (response.isError) {
     return {
@@ -38,4 +36,4 @@ export const UpdatePurchaseTool: ToolDefinition<typeof toolSchema> = {
   description: toolDescription,
   schema: toolSchema,
   handler: toolHandler,
-}; 
+};

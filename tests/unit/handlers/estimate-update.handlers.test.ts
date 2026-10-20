@@ -60,4 +60,14 @@ describe('updateQuickbooksEstimate (sparse)', () => {
     expect(result.error).toContain('Object Not Found');
     expect(mockQuickBooksInstance.updateEstimate).not.toHaveBeenCalled();
   });
+
+  it('returns an error when the update call fails', async () => {
+    mockQuickBooksInstance.getEstimate.mockImplementation((id: any, cb: any) => cb(null, { Id: '42', SyncToken: '0' }));
+    mockQuickBooksInstance.updateEstimate.mockImplementation((payload: any, cb: any) => cb(new Error('Stale object')));
+
+    const result = await updateQuickbooksEstimate({ estimate_id: '42', patch: {} });
+
+    expect(result.isError).toBe(true);
+    expect(result.error).toContain('Stale object');
+  });
 });

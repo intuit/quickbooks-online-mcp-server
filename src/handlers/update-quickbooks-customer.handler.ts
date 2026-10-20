@@ -2,36 +2,36 @@ import { QuickbooksClient } from "../clients/quickbooks-client.js";
 import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
 
+export interface UpdateCustomerInput {
+  customer_id: string;
+  patch: Record<string, any>; // Fields to change; everything else is kept
+}
+
 /**
- * Update an existing customer in QuickBooks Online
- * The customerData object must include Id and SyncToken per Quickbooks API requirements
+ * Sparse-update a customer in QuickBooks Online. Fetches the current record so
+ * callers only send the fields they want to change (a caller-supplied
+ * SyncToken in the patch wins over the fetched one).
  */
-export async function updateQuickbooksCustomer(customerData: any): Promise<ToolResponse<any>> {
+export async function updateQuickbooksCustomer({ customer_id, patch }: UpdateCustomerInput): Promise<ToolResponse<any>> {
   try {
     const quickbooks = await QuickbooksClient.getInstance();
 
+    const existing: any = await new Promise((res, rej) => {
+      (quickbooks as any).getCustomer(customer_id, (e: any, found: any) => (e ? rej(e) : res(found)));
+    });
+
+    const updatePayload = { ...existing, ...patch, Id: customer_id, sparse: true };
+
     return new Promise((resolve) => {
-      quickbooks.updateCustomer(customerData, (err: any, customer: any) => {
+      quickbooks.updateCustomer(updatePayload, (err: any, updated: any) => {
         if (err) {
-          resolve({
-            result: null,
-            isError: true,
-            error: formatError(err),
-          });
+          resolve({ result: null, isError: true, error: formatError(err) });
         } else {
-          resolve({
-            result: customer,
-            isError: false,
-            error: null,
-          });
+          resolve({ result: updated, isError: false, error: null });
         }
       });
     });
   } catch (error) {
-    return {
-      result: null,
-      isError: true,
-      error: formatError(error),
-    };
+    return { result: null, isError: true, error: formatError(error) };
   }
-} 
+}

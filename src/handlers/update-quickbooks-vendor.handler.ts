@@ -2,35 +2,36 @@ import { QuickbooksClient } from "../clients/quickbooks-client.js";
 import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
 
+export interface UpdateVendorInput {
+  vendor_id: string;
+  patch: Record<string, any>; // Fields to change; everything else is kept
+}
+
 /**
- * Update a vendor in QuickBooks Online
+ * Sparse-update a vendor in QuickBooks Online. Fetches the current record so
+ * callers only send the fields they want to change (a caller-supplied
+ * SyncToken in the patch wins over the fetched one).
  */
-export async function updateQuickbooksVendor(vendor: any): Promise<ToolResponse<any>> {
+export async function updateQuickbooksVendor({ vendor_id, patch }: UpdateVendorInput): Promise<ToolResponse<any>> {
   try {
     const quickbooks = await QuickbooksClient.getInstance();
 
+    const existing: any = await new Promise((res, rej) => {
+      (quickbooks as any).getVendor(vendor_id, (e: any, found: any) => (e ? rej(e) : res(found)));
+    });
+
+    const updatePayload = { ...existing, ...patch, Id: vendor_id, sparse: true };
+
     return new Promise((resolve) => {
-      quickbooks.updateVendor(vendor, (err: any, updatedVendor: any) => {
+      quickbooks.updateVendor(updatePayload, (err: any, updated: any) => {
         if (err) {
-          resolve({
-            result: null,
-            isError: true,
-            error: formatError(err),
-          });
+          resolve({ result: null, isError: true, error: formatError(err) });
         } else {
-          resolve({
-            result: updatedVendor,
-            isError: false,
-            error: null,
-          });
+          resolve({ result: updated, isError: false, error: null });
         }
       });
     });
   } catch (error) {
-    return {
-      result: null,
-      isError: true,
-      error: formatError(error),
-    };
+    return { result: null, isError: true, error: formatError(error) };
   }
-} 
+}

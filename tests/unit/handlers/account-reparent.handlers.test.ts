@@ -124,4 +124,14 @@ describe('updateQuickbooksAccount re-parenting', () => {
     const result = await updateQuickbooksAccount({ account_id: '50', patch: { Name: 'Y' } });
     expect(result.isError).toBe(true);
   });
+
+  it('returns an error when the update call fails', async () => {
+    mockQuickBooksInstance.getAccount.mockImplementation((_id: any, cb: any) => cb(null, { Id: '50', SyncToken: '0' }));
+    mockQuickBooksInstance.updateAccount.mockImplementation((_p: any, cb: any) => cb(new Error('Stale object')));
+
+    const result = await updateQuickbooksAccount({ account_id: '50', patch: { Name: 'X' } });
+
+    expect(result.isError).toBe(true);
+    expect(result.error).toContain('Stale object');
+  });
 });

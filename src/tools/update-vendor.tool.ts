@@ -3,53 +3,29 @@ import { ToolDefinition } from "../types/tool-definition.js";
 import { z } from "zod";
 
 const toolName = "update-vendor";
-const toolDescription = "Update a vendor in QuickBooks Online.";
+const toolDescription =
+  "Update a vendor in QuickBooks Online. " +
+  "Changes only the fields you send in `patch`; other fields are kept. A `Line` array replaces all lines.";
+
 const toolSchema = z.object({
-  vendor: z.object({
-    Id: z.string(),
-    SyncToken: z.string(),
-    DisplayName: z.string(),
-    GivenName: z.string().optional(),
-    FamilyName: z.string().optional(),
-    CompanyName: z.string().optional(),
-    PrimaryEmailAddr: z.object({
-      Address: z.string().optional(),
-    }).optional(),
-    PrimaryPhone: z.object({
-      FreeFormNumber: z.string().optional(),
-    }).optional(),
-    BillAddr: z.object({
-      Line1: z.string().optional(),
-      City: z.string().optional(),
-      Country: z.string().optional(),
-      CountrySubDivisionCode: z.string().optional(),
-      PostalCode: z.string().optional(),
-    }).optional(),
-  }),
+  vendor_id: z.string().min(1),
+  patch: z.record(z.any()),
 });
 
-const toolHandler = async (args: { [x: string]: any }) => {
-  const response = await updateQuickbooksVendor(args.params.vendor);
+const toolHandler = async ({ params }: any) => {
+  const response = await updateQuickbooksVendor(params);
 
   if (response.isError) {
     return {
       content: [
-        {
-          type: "text" as const,
-          text: `Error updating vendor: ${response.error}`,
-        },
+        { type: "text" as const, text: `Error updating vendor: ${response.error}` },
       ],
     };
   }
 
-  const vendor = response.result;
-
   return {
     content: [
-      {
-        type: "text" as const,
-        text: JSON.stringify(vendor),
-      }
+      { type: "text" as const, text: JSON.stringify(response.result) },
     ],
   };
 };
@@ -59,4 +35,4 @@ export const UpdateVendorTool: ToolDefinition<typeof toolSchema> = {
   description: toolDescription,
   schema: toolSchema,
   handler: toolHandler,
-}; 
+};

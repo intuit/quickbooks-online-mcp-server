@@ -76,14 +76,16 @@ describe('create_journal_entry schema', () => {
 describe('update_journal_entry schema', () => {
   it('accepts a sparse update with no Line array', () => {
     const result = UpdateJournalEntryTool.schema.safeParse({
-      journalEntry: { Id: '5', SyncToken: '0', sparse: true, PrivateNote: 'memo only' },
+      journal_entry_id: '5',
+      patch: { SyncToken: '0', sparse: true, PrivateNote: 'memo only' },
     });
     expect(result.success).toBe(true);
   });
 
   it('accepts an update with lines', () => {
     const result = UpdateJournalEntryTool.schema.safeParse({
-      journalEntry: { Id: '5', SyncToken: '0', Line: balancedLines },
+      journal_entry_id: '5',
+      patch: { SyncToken: '0', Line: balancedLines },
     });
     expect(result.success).toBe(true);
   });
@@ -121,18 +123,20 @@ describe('journal entry tool handlers', () => {
 
   it('update handler returns the updated entry on success', async () => {
     const updated = { Id: '5', SyncToken: '1' };
+    mockQuickBooksInstance.getJournalEntry.mockImplementation((_id: any, cb: any) => cb(null, { Id: '5', SyncToken: '0' }));
     mockQuickBooksInstance.updateJournalEntry.mockImplementation((_p: any, cb: any) => cb(null, updated));
 
-    const result = await updateHandler({ params: { journalEntry: { Id: '5', SyncToken: '0' } } });
+    const result = await updateHandler({ params: { journal_entry_id: '5', patch: {} } });
 
     expect(result.content[0].text).toContain('Journal entry updated');
     expect(result.content[1].text).toContain('"SyncToken":"1"');
   });
 
   it('update handler returns an error message on failure', async () => {
+    mockQuickBooksInstance.getJournalEntry.mockImplementation((_id: any, cb: any) => cb(null, { Id: '5', SyncToken: '0' }));
     mockQuickBooksInstance.updateJournalEntry.mockImplementation((_p: any, cb: any) => cb(new Error('boom')));
 
-    const result = await updateHandler({ params: { journalEntry: { Id: '5', SyncToken: '0' } } });
+    const result = await updateHandler({ params: { journal_entry_id: '5', patch: {} } });
 
     expect(result.content[0].text).toContain('Error updating journal entry');
   });
@@ -151,7 +155,7 @@ describe('journal entry tool handlers', () => {
   it('update handler surfaces an error when getInstance rejects', async () => {
     (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
-    const result = await updateHandler({ params: { journalEntry: { Id: '5', SyncToken: '0' } } });
+    const result = await updateHandler({ params: { journal_entry_id: '5', patch: {} } });
 
     expect(result.content[0].text).toContain('Error updating journal entry');
     expect(result.content[0].text).toContain('Auth failed');
