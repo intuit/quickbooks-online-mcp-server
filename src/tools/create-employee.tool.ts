@@ -4,7 +4,8 @@ import { z } from "zod";
 
 // Define the tool metadata
 const toolName = "create_employee";
-const toolDescription = "Create an employee in QuickBooks Online.";
+const toolDescription =
+  "Creates an employee in QuickBooks Online.";
 
 // Define the expected input schema for creating an employee
 const toolSchema = z.object({

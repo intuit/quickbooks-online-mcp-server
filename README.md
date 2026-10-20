@@ -164,6 +164,12 @@ Complete CRUD operations are available for all entity types:
 
 ## Tool Reference
 
+### Updates and deletes
+
+**Updates are sparse.** Every `update_*` tool takes the record's id and a `patch` of the fields to change. The server fetches the record for its `SyncToken`, then sends only the patch with `sparse: true`, so fields you leave out are kept. Two things still replace wholesale: a `Line` array replaces all lines, and a nested object such as `BillAddr` or `PrimaryEmailAddr` replaces the whole object. Send a `SyncToken` in the patch if you want a stale edit to fail instead of overwriting.
+
+**Deletes are confirmed in two steps.** Transaction `delete_*` tools void where QuickBooks supports it (invoice, payment, sales receipt, bill payment, refund receipt) and permanently delete otherwise. Either way the first call, without `confirmation_code`, changes nothing and returns a summary of the record plus a one-time code. The second call with the same id and that code performs the action. Codes expire after 10 minutes and are refused if the record changed in between. Name-list deletes (`delete_customer`, `delete_vendor`, `delete_item`, `delete_employee`) mark the record inactive, which is reversible, so they need no code.
+
 <details>
 <summary><strong>Customer Tools</strong></summary>
 
@@ -171,8 +177,8 @@ Complete CRUD operations are available for all entity types:
 |------|-------------|
 | `create_customer` | Create a new customer |
 | `get_customer` | Get customer by ID |
-| `update_customer` | Update customer details |
-| `delete_customer` | Delete a customer |
+| `update_customer` | Update customer fields (sparse; omitted fields are kept) |
+| `delete_customer` | Mark a customer inactive (reversible) |
 | `search_customers` | Search customers with filters |
 
 </details>
@@ -184,8 +190,8 @@ Complete CRUD operations are available for all entity types:
 |------|-------------|
 | `create_invoice` | Create a new invoice |
 | `get_invoice` | Get invoice by ID |
-| `update_invoice` | Update invoice details |
-| `delete_invoice` | Delete/void an invoice |
+| `update_invoice` | Update invoice fields (sparse; omitted fields are kept) |
+| `delete_invoice` | Void an invoice (requires confirmation code) |
 | `search_invoices` | Search invoices with filters |
 | `get_invoice_pdf` | Download an invoice as a PDF (inline base64, or to disk when `QBO_PDF_OUTPUT_DIR` is set) |
 
@@ -199,7 +205,7 @@ Complete CRUD operations are available for all entity types:
 | `create_payment` | Record a customer payment |
 | `get_payment` | Get payment by ID |
 | `update_payment` | Update payment details |
-| `delete_payment` | Void a payment |
+| `delete_payment` | Void a payment (requires confirmation code) |
 | `search_payments` | Search payments with filters |
 
 </details>
@@ -212,17 +218,17 @@ Complete CRUD operations are available for all entity types:
 | `create_bill` | Create a new bill |
 | `get_bill` | Get bill by ID |
 | `update_bill` | Update bill details |
-| `delete_bill` | Delete a bill |
+| `delete_bill` | Permanently delete a bill (requires confirmation code) |
 | `search_bills` | Search bills with filters |
 | `create_vendor` | Create a new vendor |
 | `get_vendor` | Get vendor by ID |
-| `update_vendor` | Update vendor details |
-| `delete_vendor` | Delete a vendor |
+| `update_vendor` | Update vendor fields (sparse; omitted fields are kept) |
+| `delete_vendor` | Mark a vendor inactive (reversible) |
 | `search_vendors` | Search vendors with filters |
 | `create_bill_payment` | Create a bill payment |
 | `get_bill_payment` | Get bill payment by ID |
-| `update_bill_payment` | Update bill payment |
-| `delete_bill_payment` | Delete a bill payment |
+| `update_bill_payment` | Update bill payment fields (sparse; omitted fields are kept) |
+| `delete_bill_payment` | Void a bill payment (requires confirmation code) |
 | `search_bill_payments` | Search bill payments |
 
 </details>
@@ -235,17 +241,17 @@ Complete CRUD operations are available for all entity types:
 | `create_sales_receipt` | Create a sales receipt |
 | `get_sales_receipt` | Get sales receipt by ID |
 | `update_sales_receipt` | Update sales receipt |
-| `delete_sales_receipt` | Void a sales receipt |
+| `delete_sales_receipt` | Void a sales receipt (requires confirmation code) |
 | `search_sales_receipts` | Search sales receipts |
 | `create_credit_memo` | Create a credit memo |
 | `get_credit_memo` | Get credit memo by ID |
 | `update_credit_memo` | Update credit memo |
-| `delete_credit_memo` | Void a credit memo |
+| `delete_credit_memo` | Permanently delete a credit memo (requires confirmation code) |
 | `search_credit_memos` | Search credit memos |
 | `create_refund_receipt` | Create a refund receipt |
 | `get_refund_receipt` | Get refund receipt by ID |
 | `update_refund_receipt` | Update refund receipt |
-| `delete_refund_receipt` | Void a refund receipt |
+| `delete_refund_receipt` | Void a refund receipt (requires confirmation code) |
 | `search_refund_receipts` | Search refund receipts |
 
 </details>
@@ -258,12 +264,12 @@ Complete CRUD operations are available for all entity types:
 | `create_deposit` | Create a bank deposit |
 | `get_deposit` | Get deposit by ID |
 | `update_deposit` | Update deposit details |
-| `delete_deposit` | Delete a deposit |
+| `delete_deposit` | Permanently delete a deposit (requires confirmation code) |
 | `search_deposits` | Search deposits |
 | `create_transfer` | Create an account transfer |
 | `get_transfer` | Get transfer by ID |
 | `update_transfer` | Update transfer details |
-| `delete_transfer` | Delete a transfer |
+| `delete_transfer` | Permanently delete a transfer (requires confirmation code) |
 | `search_transfers` | Search transfers |
 
 </details>
@@ -276,12 +282,12 @@ Complete CRUD operations are available for all entity types:
 | `create_purchase_order` | Create a purchase order |
 | `get_purchase_order` | Get purchase order by ID |
 | `update_purchase_order` | Update purchase order |
-| `delete_purchase_order` | Delete a purchase order |
+| `delete_purchase_order` | Permanently delete a purchase order (requires confirmation code) |
 | `search_purchase_orders` | Search purchase orders |
 | `create_vendor_credit` | Create a vendor credit |
 | `get_vendor_credit` | Get vendor credit by ID |
 | `update_vendor_credit` | Update vendor credit |
-| `delete_vendor_credit` | Delete a vendor credit |
+| `delete_vendor_credit` | Permanently delete a vendor credit (requires confirmation code) |
 | `search_vendor_credits` | Search vendor credits |
 
 </details>
@@ -294,7 +300,7 @@ Complete CRUD operations are available for all entity types:
 | `create_time_activity` | Create a time activity |
 | `get_time_activity` | Get time activity by ID |
 | `update_time_activity` | Update time activity |
-| `delete_time_activity` | Delete a time activity |
+| `delete_time_activity` | Permanently delete a time activity (requires confirmation code) |
 | `search_time_activities` | Search time activities |
 
 </details>
@@ -356,7 +362,7 @@ Complete CRUD operations are available for all entity types:
 | `create_attachable` | Create an attachment |
 | `get_attachable` | Get attachment by ID |
 | `update_attachable` | Update attachment |
-| `delete_attachable` | Delete an attachment |
+| `delete_attachable` | Permanently delete an attachment (requires confirmation code) |
 | `search_attachables` | Search attachments |
 
 </details>

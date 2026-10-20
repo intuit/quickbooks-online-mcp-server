@@ -2,20 +2,17 @@ import { updateQuickbooksBillPayment } from "../handlers/update-quickbooks-bill-
 import { ToolDefinition } from "../types/tool-definition.js";
 import { z } from "zod";
 
-// Define the tool metadata
 const toolName = "update_bill_payment";
-const toolDescription = "Update a bill payment in QuickBooks Online.";
+const toolDescription =
+  "Updates a bill payment in QuickBooks Online. Changes only the fields you send in `patch`; other fields are kept. A `Line` array replaces all lines. Nested objects (e.g. BillAddr, ShipAddr, PrimaryEmailAddr) replace the whole object — send all of its sub-fields.";
 
-// Define the expected input schema for updating a bill payment
 const toolSchema = z.object({
-  billPayment: z.any(),
+  bill_payment_id: z.string().min(1),
+  patch: z.record(z.any()),
 });
 
-type ToolParams = z.infer<typeof toolSchema>;
-
-// Define the tool handler
-const toolHandler = async (args: any) => {
-  const response = await updateQuickbooksBillPayment(args.params.billPayment);
+const toolHandler = async ({ params }: any) => {
+  const response = await updateQuickbooksBillPayment(params);
 
   if (response.isError) {
     return {
@@ -38,4 +35,4 @@ export const UpdateBillPaymentTool: ToolDefinition<typeof toolSchema> = {
   description: toolDescription,
   schema: toolSchema,
   handler: toolHandler,
-}; 
+};

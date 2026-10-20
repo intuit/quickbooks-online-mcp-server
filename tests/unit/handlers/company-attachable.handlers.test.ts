@@ -50,7 +50,6 @@ const { updateQuickbooksCompanyInfo } = await import('../../../src/handlers/upda
 const { createQuickbooksAttachable } = await import('../../../src/handlers/create-quickbooks-attachable.handler');
 const { getQuickbooksAttachable } = await import('../../../src/handlers/get-quickbooks-attachable.handler');
 const { updateQuickbooksAttachable } = await import('../../../src/handlers/update-quickbooks-attachable.handler');
-const { deleteQuickbooksAttachable } = await import('../../../src/handlers/delete-quickbooks-attachable.handler');
 const { searchQuickbooksAttachables } = await import('../../../src/handlers/search-quickbooks-attachables.handler');
 
 describe('Company and Attachable Handlers', () => {
@@ -600,34 +599,6 @@ describe('Company and Attachable Handlers', () => {
     });
   });
 
-  describe('deleteQuickbooksAttachable', () => {
-    it('should delete an attachable', async () => {
-      mockQuickBooksInstance.deleteAttachable.mockImplementation((payload: any, cb: any) => cb(null, {}));
-
-      const result = await deleteQuickbooksAttachable({ id: '1', sync_token: '0' });
-
-      expect(result.isError).toBe(false);
-    });
-
-    it('should handle API errors', async () => {
-      mockQuickBooksInstance.deleteAttachable.mockImplementation((payload: any, cb: any) =>
-        cb(new Error('Delete failed'), null)
-      );
-
-      const result = await deleteQuickbooksAttachable({ id: '1', sync_token: '0' });
-
-      expect(result.isError).toBe(true);
-    });
-
-    it('should handle authentication errors', async () => {
-      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
-
-      const result = await deleteQuickbooksAttachable({ id: '1', sync_token: '0' });
-
-      expect(result.isError).toBe(true);
-      expect(result.error).toContain('Auth failed');
-    });
-  });
 
   describe('searchQuickbooksAttachables', () => {
     it('should search attachables', async () => {

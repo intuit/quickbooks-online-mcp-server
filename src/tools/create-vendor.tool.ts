@@ -3,7 +3,8 @@ import { ToolDefinition } from "../types/tool-definition.js";
 import { z } from "zod";
 
 const toolName = "create-vendor";
-const toolDescription = "Create a vendor in QuickBooks Online.";
+const toolDescription =
+  "Creates a vendor in QuickBooks Online.";
 const toolSchema = z.object({
   vendor: z.object({
     DisplayName: z.string(),

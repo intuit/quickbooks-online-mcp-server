@@ -4,13 +4,15 @@ import { z } from "zod";
 
 const toolName = "update_customer";
 const toolDescription =
-  "Update an existing customer in QuickBooks Online. The customer object must include Id and SyncToken (add sparse: true for a partial update). Tax info fields work as in create_customer (e.g. PrimaryTaxIdentifier for the tax registration number / EU VAT number / CIF, DefaultTaxCodeRef for the default sales tax code); responses always return PrimaryTaxIdentifier masked.";
-const toolSchema = z.object({ customer: z.any() });
+  "Updates an existing customer in QuickBooks Online. Tax info fields work as in create_customer (e.g. PrimaryTaxIdentifier, DefaultTaxCodeRef); responses always return PrimaryTaxIdentifier masked. Changes only the fields you send in `patch`; other fields are kept. Nested objects (e.g. BillAddr, ShipAddr, PrimaryEmailAddr) replace the whole object — send all of its sub-fields.";
 
-type ToolParams = z.infer<typeof toolSchema>;
+const toolSchema = z.object({
+  customer_id: z.string().min(1),
+  patch: z.record(z.any()),
+});
 
-const toolHandler = async (args: any) => {
-  const response = await updateQuickbooksCustomer(args.params.customer);
+const toolHandler = async ({ params }: any) => {
+  const response = await updateQuickbooksCustomer(params);
 
   if (response.isError) {
     return {
@@ -33,4 +35,4 @@ export const UpdateCustomerTool: ToolDefinition<typeof toolSchema> = {
   description: toolDescription,
   schema: toolSchema,
   handler: toolHandler,
-}; 
+};

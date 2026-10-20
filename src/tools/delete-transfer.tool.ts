@@ -1,15 +1,31 @@
 import { deleteQuickbooksTransfer } from "../handlers/delete-quickbooks-transfer.handler.js";
+import { confirmationToolText } from "../helpers/confirm-flow.js";
 import { ToolDefinition } from "../types/tool-definition.js";
 import { z } from "zod";
 
 const toolName = "delete_transfer";
-const toolDescription = "Delete a transfer in QuickBooks Online.";
-const toolSchema = z.object({ idOrEntity: z.any() });
+const toolDescription =
+  "Permanently deletes the transfer (cannot be undone). Two steps: call once without `confirmation_code` to get a summary and code, show the summary to the user and ask, then call again with the code.";
+const toolSchema = z.object({
+  id: z.string().min(1),
+  confirmation_code: z.string().optional(),
+});
 
-const toolHandler = async (args: any) => {
-  const response = await deleteQuickbooksTransfer(args.params.idOrEntity);
-  if (response.isError) return { content: [{ type: "text" as const, text: `Error: ${response.error}` }] };
-  return { content: [{ type: "text" as const, text: `Transfer deleted:` }, { type: "text" as const, text: JSON.stringify(response.result) }] };
+const toolHandler = async ({ params }: any) => {
+  const response = await deleteQuickbooksTransfer(params);
+
+  if (response.isError) {
+    return { content: [{ type: "text" as const, text: `Error deleting transfer: ${response.error}` }] };
+  }
+
+  return {
+    content: confirmationToolText(response, "Transfer permanently deleted:").map((text) => ({ type: "text" as const, text })),
+  };
 };
 
-export const DeleteTransferTool: ToolDefinition<typeof toolSchema> = { name: toolName, description: toolDescription, schema: toolSchema, handler: toolHandler };
+export const DeleteTransferTool: ToolDefinition<typeof toolSchema> = {
+  name: toolName,
+  description: toolDescription,
+  schema: toolSchema,
+  handler: toolHandler,
+};

@@ -3,7 +3,8 @@ import { ToolDefinition } from "../types/tool-definition.js";
 import { z } from "zod";
 
 const toolName = "create_credit_memo";
-const toolDescription = "Create a credit memo (customer credit) in QuickBooks Online.";
+const toolDescription =
+  "Creates a credit memo (customer credit) in QuickBooks Online.";
 
 const lineItemSchema = z.object({
   item_ref: z.string().min(1).describe("Item ID"),

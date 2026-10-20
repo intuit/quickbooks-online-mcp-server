@@ -4,7 +4,7 @@ import { z } from "zod";
 
 const toolName = "create_vendor_credit";
 const toolDescription =
-  "Create a vendor credit in QuickBooks Online. Supports per-line sales tax (tax_code_ref) and class tracking (class_ref) the same way bills do — for companies using the global tax model (CA/UK/AU etc.), set each line's tax_code_ref and a top-level global_tax_calculation so QBO auto-calculates TxnTaxDetail.";
+  "Creates a vendor credit in QuickBooks Online. Supports per-line sales tax (tax_code_ref) and class tracking (class_ref) the same way bills do — for companies using the global tax model (CA/UK/AU etc.), set each line's tax_code_ref and a top-level global_tax_calculation so QBO auto-calculates TxnTaxDetail.";
 
 // Shared with update-vendor-credit.tool.ts so the two tools can never drift
 // in what line shapes they accept. Amount allows 0 so existing credits with

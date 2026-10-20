@@ -3,19 +3,19 @@ import { ToolDefinition } from "../types/tool-definition.js";
 import { z } from "zod";
 
 const toolName = "delete_customer";
-const toolDescription = "Delete (make inactive) a customer in QuickBooks Online.";
-const toolSchema = z.object({ idOrEntity: z.any() });
+const toolDescription = "Marks the customer inactive (can be undone in QuickBooks).";
+const toolSchema = z.object({ id: z.string().min(1) });
 
-const toolHandler = async (args: any) => {
-  const response = await deleteQuickbooksCustomer(args.params.idOrEntity);
+const toolHandler = async ({ params }: any) => {
+  const response = await deleteQuickbooksCustomer(params.id);
 
   if (response.isError) {
-    return { content: [{ type: "text" as const, text: `Error deleting customer: ${response.error}` }] };
+    return { content: [{ type: "text" as const, text: `Error marking customer inactive: ${response.error}` }] };
   }
 
   return {
     content: [
-      { type: "text" as const, text: `Customer deleted:` },
+      { type: "text" as const, text: `Customer marked inactive:` },
       { type: "text" as const, text: JSON.stringify(response.result) },
     ],
   };
@@ -26,4 +26,4 @@ export const DeleteCustomerTool: ToolDefinition<typeof toolSchema> = {
   description: toolDescription,
   schema: toolSchema,
   handler: toolHandler,
-}; 
+};

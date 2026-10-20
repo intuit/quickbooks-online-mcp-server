@@ -5,6 +5,20 @@ All notable changes to the QuickBooks Online MCP Server are documented in this f
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- `update_customer`, `update-vendor`, `update_employee`, `update_purchase`, `update_bill_payment`, `update_journal_entry` and `update_estimate` now take `<entity>_id` plus a `patch` and perform a sparse update. Previously the caller's object was sent as a full update and any omitted field was blanked.
+- All `delete_*` tools for transactions now take `id` and an optional `confirmation_code`. The first call returns a summary and a one-time code; the second call voids or deletes.
+- `delete_invoice` and `delete_payment` void only; `delete_sales_receipt`, `delete_bill_payment` and `delete_refund_receipt` now void instead of permanently deleting.
+- `delete_customer` and `delete-vendor` mark the record inactive with a sparse update instead of deleting (#162).
+- Write-tool descriptions state the real effect of each tool (sparse update, void, permanent delete, inactivate).
+
+### Added
+
+- `src/helpers/sparse-patch.ts`, `confirm-flow.ts`, `confirmation-code.ts`, `inactivate.ts` and unit tests covering every patched tool.
+
 ## [0.0.1] - 2024-01-13
 
 ### Summary

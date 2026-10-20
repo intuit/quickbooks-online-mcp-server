@@ -3,7 +3,8 @@ import { ToolDefinition } from "../types/tool-definition.js";
 import { z } from "zod";
 
 const toolName = "update_payment_method";
-const toolDescription = "Update an existing payment method in QuickBooks Online.";
+const toolDescription =
+  "Updates an existing payment method in QuickBooks Online. Changes only the fields you send; other fields are kept.";
 const toolSchema = z.object({
   id: z.string().min(1).describe("Payment method ID"),
   sync_token: z.string().min(1).describe("Sync token for concurrency"),

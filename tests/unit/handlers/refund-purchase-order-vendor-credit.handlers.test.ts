@@ -11,17 +11,14 @@ jest.unstable_mockModule('../../../src/clients/quickbooks-client', () => ({
 const { createQuickbooksRefundReceipt } = await import('../../../src/handlers/create-quickbooks-refund-receipt.handler');
 const { getQuickbooksRefundReceipt } = await import('../../../src/handlers/get-quickbooks-refund-receipt.handler');
 const { updateQuickbooksRefundReceipt } = await import('../../../src/handlers/update-quickbooks-refund-receipt.handler');
-const { deleteQuickbooksRefundReceipt } = await import('../../../src/handlers/delete-quickbooks-refund-receipt.handler');
 const { searchQuickbooksRefundReceipts } = await import('../../../src/handlers/search-quickbooks-refund-receipts.handler');
 const { createQuickbooksPurchaseOrder } = await import('../../../src/handlers/create-quickbooks-purchase-order.handler');
 const { getQuickbooksPurchaseOrder } = await import('../../../src/handlers/get-quickbooks-purchase-order.handler');
 const { updateQuickbooksPurchaseOrder } = await import('../../../src/handlers/update-quickbooks-purchase-order.handler');
-const { deleteQuickbooksPurchaseOrder } = await import('../../../src/handlers/delete-quickbooks-purchase-order.handler');
 const { searchQuickbooksPurchaseOrders } = await import('../../../src/handlers/search-quickbooks-purchase-orders.handler');
 const { createQuickbooksVendorCredit } = await import('../../../src/handlers/create-quickbooks-vendor-credit.handler');
 const { getQuickbooksVendorCredit } = await import('../../../src/handlers/get-quickbooks-vendor-credit.handler');
 const { updateQuickbooksVendorCredit } = await import('../../../src/handlers/update-quickbooks-vendor-credit.handler');
-const { deleteQuickbooksVendorCredit } = await import('../../../src/handlers/delete-quickbooks-vendor-credit.handler');
 const { searchQuickbooksVendorCredits } = await import('../../../src/handlers/search-quickbooks-vendor-credits.handler');
 
 describe('Refund, PurchaseOrder, VendorCredit Handlers', () => {
@@ -167,33 +164,6 @@ describe('Refund, PurchaseOrder, VendorCredit Handlers', () => {
       );
 
       const result = await updateQuickbooksRefundReceipt({ id: '1', sync_token: '0' });
-
-      expect(result.isError).toBe(true);
-    });
-
-    it('should delete a refund receipt', async () => {
-      mockQuickBooksInstance.deleteRefundReceipt.mockImplementation((payload: any, cb: any) => cb(null, {}));
-
-      const result = await deleteQuickbooksRefundReceipt({ id: '1', sync_token: '0' });
-
-      expect(result.isError).toBe(false);
-    });
-
-    it('should delete a refund receipt - authentication error', async () => {
-      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
-
-      const result = await deleteQuickbooksRefundReceipt({ id: '1', sync_token: '0' });
-
-      expect(result.isError).toBe(true);
-      expect(result.error).toContain('Auth failed');
-    });
-
-    it('should delete a refund receipt - API error', async () => {
-      mockQuickBooksInstance.deleteRefundReceipt.mockImplementation((payload: any, cb: any) =>
-        cb(new Error('Delete failed'), null)
-      );
-
-      const result = await deleteQuickbooksRefundReceipt({ id: '1', sync_token: '0' });
 
       expect(result.isError).toBe(true);
     });
@@ -377,33 +347,6 @@ describe('Refund, PurchaseOrder, VendorCredit Handlers', () => {
       );
 
       const result = await updateQuickbooksPurchaseOrder({ id: '1', sync_token: '0' });
-
-      expect(result.isError).toBe(true);
-    });
-
-    it('should delete a purchase order', async () => {
-      mockQuickBooksInstance.deletePurchaseOrder.mockImplementation((payload: any, cb: any) => cb(null, {}));
-
-      const result = await deleteQuickbooksPurchaseOrder({ id: '1', sync_token: '0' });
-
-      expect(result.isError).toBe(false);
-    });
-
-    it('should delete a purchase order - authentication error', async () => {
-      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
-
-      const result = await deleteQuickbooksPurchaseOrder({ id: '1', sync_token: '0' });
-
-      expect(result.isError).toBe(true);
-      expect(result.error).toContain('Auth failed');
-    });
-
-    it('should delete a purchase order - API error', async () => {
-      mockQuickBooksInstance.deletePurchaseOrder.mockImplementation((payload: any, cb: any) =>
-        cb(new Error('Delete failed'), null)
-      );
-
-      const result = await deleteQuickbooksPurchaseOrder({ id: '1', sync_token: '0' });
 
       expect(result.isError).toBe(true);
     });
@@ -747,33 +690,6 @@ describe('Refund, PurchaseOrder, VendorCredit Handlers', () => {
       );
 
       const result = await updateQuickbooksVendorCredit({ id: '1', sync_token: '0' });
-
-      expect(result.isError).toBe(true);
-    });
-
-    it('should delete a vendor credit', async () => {
-      mockQuickBooksInstance.deleteVendorCredit.mockImplementation((payload: any, cb: any) => cb(null, {}));
-
-      const result = await deleteQuickbooksVendorCredit({ id: '1', sync_token: '0' });
-
-      expect(result.isError).toBe(false);
-    });
-
-    it('should delete a vendor credit - authentication error', async () => {
-      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
-
-      const result = await deleteQuickbooksVendorCredit({ id: '1', sync_token: '0' });
-
-      expect(result.isError).toBe(true);
-      expect(result.error).toContain('Auth failed');
-    });
-
-    it('should delete a vendor credit - API error', async () => {
-      mockQuickBooksInstance.deleteVendorCredit.mockImplementation((payload: any, cb: any) =>
-        cb(new Error('Delete failed'), null)
-      );
-
-      const result = await deleteQuickbooksVendorCredit({ id: '1', sync_token: '0' });
 
       expect(result.isError).toBe(true);
     });

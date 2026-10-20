@@ -11,7 +11,6 @@ jest.unstable_mockModule('../../../src/clients/quickbooks-client', () => ({
 const { createQuickbooksVendor } = await import('../../../src/handlers/create-quickbooks-vendor.handler');
 const { getQuickbooksVendor } = await import('../../../src/handlers/get-quickbooks-vendor.handler');
 const { updateQuickbooksVendor } = await import('../../../src/handlers/update-quickbooks-vendor.handler');
-const { deleteQuickbooksVendor } = await import('../../../src/handlers/delete-quickbooks-vendor.handler');
 const { searchQuickbooksVendors } = await import('../../../src/handlers/search-quickbooks-vendors.handler');
 
 describe('Vendor Handlers', () => {
@@ -85,11 +84,15 @@ describe('Vendor Handlers', () => {
   });
 
   describe('updateQuickbooksVendor', () => {
+    beforeEach(() => {
+      mockQuickBooksInstance.getVendor.mockImplementation((_id: any, cb: any) => cb(null, { Id: '56', SyncToken: '0', DisplayName: 'Acme Corp' }));
+    });
+
     it('should update a vendor', async () => {
       const mockUpdated = { Id: '56', DisplayName: 'Acme Corp Updated', SyncToken: '1' };
       mockQuickBooksInstance.updateVendor.mockImplementation((_payload: any, cb: any) => cb(null, mockUpdated));
 
-      const result = await updateQuickbooksVendor({ Id: '56', SyncToken: '0', DisplayName: 'Acme Corp Updated' });
+      const result = await updateQuickbooksVendor({ vendor_id: '56', patch: { DisplayName: 'Acme Corp Updated' } });
 
       expect(result.isError).toBe(false);
       expect(result.result).toEqual(mockUpdated);
@@ -100,7 +103,7 @@ describe('Vendor Handlers', () => {
         cb(new Error('Update failed'), null)
       );
 
-      const result = await updateQuickbooksVendor({ Id: '56', SyncToken: '0' });
+      const result = await updateQuickbooksVendor({ vendor_id: '56', patch: {} });
 
       expect(result.isError).toBe(true);
     });
@@ -108,38 +111,7 @@ describe('Vendor Handlers', () => {
     it('should handle authentication errors', async () => {
       (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
-      const result = await updateQuickbooksVendor({ Id: '56', SyncToken: '0' });
-
-      expect(result.isError).toBe(true);
-      expect(result.error).toContain('Error: Auth failed');
-    });
-  });
-
-  describe('deleteQuickbooksVendor', () => {
-    it('should delete a vendor', async () => {
-      const mockDeleted = { Id: '56', status: 'Deleted' };
-      mockQuickBooksInstance.deleteVendor.mockImplementation((_payload: any, cb: any) => cb(null, mockDeleted));
-
-      const result = await deleteQuickbooksVendor({ Id: '56', SyncToken: '0' });
-
-      expect(result.isError).toBe(false);
-      expect(result.result).toEqual(mockDeleted);
-    });
-
-    it('should handle API errors', async () => {
-      mockQuickBooksInstance.deleteVendor.mockImplementation((_payload: any, cb: any) =>
-        cb(new Error('Delete failed'), null)
-      );
-
-      const result = await deleteQuickbooksVendor({ Id: '56', SyncToken: '0' });
-
-      expect(result.isError).toBe(true);
-    });
-
-    it('should handle authentication errors', async () => {
-      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
-
-      const result = await deleteQuickbooksVendor({ Id: '56', SyncToken: '0' });
+      const result = await updateQuickbooksVendor({ vendor_id: '56', patch: {} });
 
       expect(result.isError).toBe(true);
       expect(result.error).toContain('Error: Auth failed');

@@ -2,20 +2,17 @@ import { updateQuickbooksEmployee } from "../handlers/update-quickbooks-employee
 import { ToolDefinition } from "../types/tool-definition.js";
 import { z } from "zod";
 
-// Define the tool metadata
 const toolName = "update_employee";
-const toolDescription = "Update an employee in QuickBooks Online.";
+const toolDescription =
+  "Updates an employee in QuickBooks Online. Changes only the fields you send in `patch`; other fields are kept. Nested objects (e.g. BillAddr, ShipAddr, PrimaryEmailAddr) replace the whole object — send all of its sub-fields.";
 
-// Define the expected input schema for updating an employee
 const toolSchema = z.object({
-  employee: z.any(),
+  employee_id: z.string().min(1),
+  patch: z.record(z.any()),
 });
 
-type ToolParams = z.infer<typeof toolSchema>;
-
-// Define the tool handler
-const toolHandler = async (args: any) => {
-  const response = await updateQuickbooksEmployee(args.params.employee);
+const toolHandler = async ({ params }: any) => {
+  const response = await updateQuickbooksEmployee(params);
 
   if (response.isError) {
     return {
@@ -38,4 +35,4 @@ export const UpdateEmployeeTool: ToolDefinition<typeof toolSchema> = {
   description: toolDescription,
   schema: toolSchema,
   handler: toolHandler,
-}; 
+};

@@ -4,7 +4,8 @@ import { z } from "zod";
 
 // Define the tool metadata
 const toolName = "create_journal_entry";
-const toolDescription = "Create a journal entry in QuickBooks Online. Description goes on the Line level, not inside JournalEntryLineDetail.";
+const toolDescription =
+  "Creates a journal entry in QuickBooks Online. Description goes on the Line level, not inside JournalEntryLineDetail.";
 
 // Define the expected input schema for creating a journal entry.
 // .passthrough() is used on the object levels so valid QBO fields that aren't

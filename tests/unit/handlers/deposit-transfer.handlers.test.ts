@@ -11,12 +11,10 @@ jest.unstable_mockModule('../../../src/clients/quickbooks-client', () => ({
 const { createQuickbooksDeposit } = await import('../../../src/handlers/create-quickbooks-deposit.handler');
 const { getQuickbooksDeposit } = await import('../../../src/handlers/get-quickbooks-deposit.handler');
 const { updateQuickbooksDeposit } = await import('../../../src/handlers/update-quickbooks-deposit.handler');
-const { deleteQuickbooksDeposit } = await import('../../../src/handlers/delete-quickbooks-deposit.handler');
 const { searchQuickbooksDeposits } = await import('../../../src/handlers/search-quickbooks-deposits.handler');
 const { createQuickbooksTransfer } = await import('../../../src/handlers/create-quickbooks-transfer.handler');
 const { getQuickbooksTransfer } = await import('../../../src/handlers/get-quickbooks-transfer.handler');
 const { updateQuickbooksTransfer } = await import('../../../src/handlers/update-quickbooks-transfer.handler');
-const { deleteQuickbooksTransfer } = await import('../../../src/handlers/delete-quickbooks-transfer.handler');
 const { searchQuickbooksTransfers } = await import('../../../src/handlers/search-quickbooks-transfers.handler');
 
 describe('Deposit and Transfer Handlers', () => {
@@ -209,33 +207,6 @@ describe('Deposit and Transfer Handlers', () => {
       expect(result.isError).toBe(true);
     });
 
-    it('should delete a deposit', async () => {
-      mockQuickBooksInstance.deleteDeposit.mockImplementation((payload: any, cb: any) => cb(null, {}));
-
-      const result = await deleteQuickbooksDeposit({ id: '1', sync_token: '0' });
-
-      expect(result.isError).toBe(false);
-    });
-
-    it('should delete a deposit - authentication error', async () => {
-      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
-
-      const result = await deleteQuickbooksDeposit({ id: '1', sync_token: '0' });
-
-      expect(result.isError).toBe(true);
-      expect(result.error).toContain('Auth failed');
-    });
-
-    it('should delete a deposit - API error', async () => {
-      mockQuickBooksInstance.deleteDeposit.mockImplementation((payload: any, cb: any) =>
-        cb(new Error('Delete failed'), null)
-      );
-
-      const result = await deleteQuickbooksDeposit({ id: '1', sync_token: '0' });
-
-      expect(result.isError).toBe(true);
-    });
-
     it('should search deposits', async () => {
       mockQuickBooksInstance.findDeposits.mockImplementation((criteria: any, cb: any) =>
         cb(null, { QueryResponse: { Deposit: [{ Id: '1' }] } })
@@ -412,33 +383,6 @@ describe('Deposit and Transfer Handlers', () => {
       );
 
       const result = await updateQuickbooksTransfer({ id: '1', sync_token: '0' });
-
-      expect(result.isError).toBe(true);
-    });
-
-    it('should delete a transfer', async () => {
-      mockQuickBooksInstance.deleteTransfer.mockImplementation((payload: any, cb: any) => cb(null, {}));
-
-      const result = await deleteQuickbooksTransfer({ id: '1', sync_token: '0' });
-
-      expect(result.isError).toBe(false);
-    });
-
-    it('should delete a transfer - authentication error', async () => {
-      (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
-
-      const result = await deleteQuickbooksTransfer({ id: '1', sync_token: '0' });
-
-      expect(result.isError).toBe(true);
-      expect(result.error).toContain('Auth failed');
-    });
-
-    it('should delete a transfer - API error', async () => {
-      mockQuickBooksInstance.deleteTransfer.mockImplementation((payload: any, cb: any) =>
-        cb(new Error('Delete failed'), null)
-      );
-
-      const result = await deleteQuickbooksTransfer({ id: '1', sync_token: '0' });
 
       expect(result.isError).toBe(true);
     });

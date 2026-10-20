@@ -3,7 +3,8 @@ import { ToolDefinition } from "../types/tool-definition.js";
 import { z } from "zod";
 
 const toolName = "update_invoice";
-const toolDescription = "Update an existing invoice in Quickbooks by ID (sparse update).";
+const toolDescription =
+  "Updates an existing invoice in QuickBooks Online by ID. Changes only the fields you send in `patch`; other fields are kept. A `Line` array replaces all lines. Nested objects (e.g. BillAddr, ShipAddr, PrimaryEmailAddr) replace the whole object — send all of its sub-fields.";
 
 const toolSchema = z.object({
   invoice_id: z.string().min(1),

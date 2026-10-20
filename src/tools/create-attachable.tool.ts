@@ -4,7 +4,7 @@ import { z } from "zod";
 
 const toolName = "create_attachable";
 const toolDescription =
-  "Create an attachable (file attachment) in QuickBooks Online. File content can come from file_path (a file on the machine running this server — preferred for local files of any size), file_url (an https URL the server downloads), or base64_content (inline bytes — only practical for small files). Precedence: file_url/file_path (mutually exclusive) win over base64_content. With no file source, creates a metadata-only attachment record. Max file size 100 MB (QBO limit).";
+  "Creates an attachable (file attachment) in QuickBooks Online. File content can come from file_path (a file on the machine running this server — preferred for local files of any size), file_url (an https URL the server downloads), or base64_content (inline bytes — only practical for small files). Precedence: file_url/file_path (mutually exclusive) win over base64_content. With no file source, creates a metadata-only attachment record. Max file size 100 MB (QBO limit).";
 
 const toolSchema = z.object({
   file_name: z.string().min(1).describe("File name including extension (e.g., 'receipt.pdf')."),

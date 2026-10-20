@@ -3,7 +3,8 @@ import { ToolDefinition } from "../types/tool-definition.js";
 import { z } from "zod";
 
 const toolName = "update_account";
-const toolDescription = "Update an existing chart‑of‑accounts entry in Quickbooks.";
+const toolDescription =
+  "Updates a chart-of-accounts entry in QuickBooks Online. Fetches the current account and merges your changes over it, so fields you omit are kept (QuickBooks does not support sparse account updates). Nested objects (e.g. BillAddr, ShipAddr, PrimaryEmailAddr) replace the whole object — send all of its sub-fields.";
 
 const toolSchema = z.object({
   account_id: z.string().min(1),

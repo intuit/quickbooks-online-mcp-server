@@ -3,7 +3,8 @@ import { ToolDefinition } from "../types/tool-definition.js";
 import { z } from "zod";
 
 const toolName = "create_payment_method";
-const toolDescription = "Create a new payment method in QuickBooks Online (e.g., Cash, Check, Credit Card).";
+const toolDescription =
+  "Creates a new payment method in QuickBooks Online (e.g., Cash, Check, Credit Card).";
 const toolSchema = z.object({
   name: z.string().min(1).describe("Payment method name"),
   type: z.enum(["CREDIT_CARD", "NON_CREDIT_CARD"]).optional().describe("Payment method type"),
