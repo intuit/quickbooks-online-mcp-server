@@ -31,13 +31,7 @@ describe('updateQuickbooksEstimate (sparse)', () => {
     expect(result.isError).toBe(false);
     expect((mockQuickBooksInstance.getEstimate.mock.calls[0] as any)[0]).toBe('42');
     const payload = (mockQuickBooksInstance.updateEstimate.mock.calls[0] as any)[0];
-    expect(payload).toMatchObject({
-      Id: '42',
-      SyncToken: '3',
-      sparse: true,
-      TxnDate: '2026-10-05',
-      CustomerMemo: { value: 'Thanks!' },
-    });
+    expect(payload).toEqual({ Id: '42', SyncToken: '3', sparse: true, TxnDate: '2026-10-05' });
   });
 
   it('does not let the patch override Id or sparse', async () => {

@@ -4,7 +4,7 @@ import { z } from "zod";
 
 const toolName = "update_company_info";
 const toolDescription =
-  "Updates the company information in QuickBooks Online. Changes only the fields you send; other fields are kept.";
+  "Updates the company information in QuickBooks Online. Changes only the fields you send; other fields are kept. Nested objects (e.g. BillAddr, ShipAddr, PrimaryEmailAddr) replace the whole object — send all of its sub-fields.";
 const toolSchema = z.object({
   id: z.string().min(1).describe("Company ID"),
   sync_token: z.string().min(1).describe("Sync token for concurrency"),

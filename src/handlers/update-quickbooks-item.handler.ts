@@ -1,6 +1,7 @@
 import { QuickbooksClient } from "../clients/quickbooks-client.js";
 import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
+import { buildSparsePayload } from "../helpers/sparse-patch.js";
 
 export interface UpdateItemInput {
   item_id: string;
@@ -16,7 +17,7 @@ export async function updateQuickbooksItem({ item_id, patch }: UpdateItemInput):
       (quickbooks as any).getItem(item_id, (e: any, item: any) => (e ? rej(e) : res(item)));
     });
 
-    const payload = { ...existing, ...patch, Id: item_id, sparse: true };
+    const payload = buildSparsePayload(item_id, existing, patch);
 
     return new Promise((resolve) => {
       (quickbooks as any).updateItem(payload, (err: any, updated: any) => {

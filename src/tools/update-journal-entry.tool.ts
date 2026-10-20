@@ -4,7 +4,7 @@ import { z } from "zod";
 
 const toolName = "update_journal_entry";
 const toolDescription =
-  "Updates a journal entry in QuickBooks Online. Changes only the fields you send in `patch`; other fields are kept. A `Line` array replaces all lines.";
+  "Updates a journal entry in QuickBooks Online. Changes only the fields you send in `patch`; other fields are kept. A `Line` array replaces all lines. Nested objects (e.g. BillAddr, ShipAddr, PrimaryEmailAddr) replace the whole object — send all of its sub-fields.";
 
 const toolSchema = z.object({
   journal_entry_id: z.string().min(1),

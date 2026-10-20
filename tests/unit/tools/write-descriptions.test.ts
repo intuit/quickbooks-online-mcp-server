@@ -130,3 +130,26 @@ describe('write tool descriptions', () => {
     }
   });
 });
+
+describe('patch-based update descriptions', () => {
+  it('warn that nested objects replace the whole object', () => {
+    const names = ['update_customer', 'update-vendor', 'update_employee', 'update_purchase', 'update_bill_payment',
+      'update_journal_entry', 'update_invoice', 'update_estimate', 'update_item', 'update_account', 'update-bill', 'update_company_info'];
+    for (const n of names) {
+      const t = tools.find((x) => x.name === n);
+      if (!t) throw new Error(`${n}: tool not found`);
+      if (!t.description.includes('Nested objects (e.g. BillAddr, ShipAddr, PrimaryEmailAddr) replace the whole object — send all of its sub-fields.')) {
+        throw new Error(`${n}: missing nested-object warning`);
+      }
+    }
+  });
+
+  it('pins the void-column and permanent-delete tool sets', () => {
+    expect([...VOIDS].sort()).toEqual(['delete_bill_payment', 'delete_invoice', 'delete_payment', 'delete_refund_receipt', 'delete_sales_receipt'].sort());
+    expect([...INACTIVATES].sort()).toEqual(['delete_customer', 'delete_employee', 'delete_item', 'delete-vendor'].sort());
+    const deletes = writeTools.filter((t) => /^delete[_-]/.test(t.name)).map((t) => t.name);
+    const permanent = deletes.filter((n) => !VOIDS.includes(n) && !INACTIVATES.includes(n)).sort();
+    expect(permanent).toHaveLength(11);
+    for (const n of permanent) expect(lc(tools.find((t) => t.name === n)!)).toContain('permanently deletes');
+  });
+});

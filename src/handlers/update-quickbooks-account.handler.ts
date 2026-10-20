@@ -1,6 +1,7 @@
 import { QuickbooksClient } from "../clients/quickbooks-client.js";
 import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
+import { cleanPatch } from "../helpers/sparse-patch.js";
 
 export interface UpdateAccountInput {
   account_id: string;
@@ -74,7 +75,7 @@ export async function updateQuickbooksAccount({ account_id, patch }: UpdateAccou
     });
 
     // When merging existing with patch, normalize the patch first.
-    const normalizedPatch = normalizePatch(patch);
+    const normalizedPatch = normalizePatch(cleanPatch(patch));
     // QBO's Account entity does NOT support sparse updates: a sparse:true body
     // returns error 2020 ("Required parameter Name is missing"). We perform a
     // full-object update by spreading the freshly-fetched existing account

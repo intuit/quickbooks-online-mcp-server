@@ -12,6 +12,12 @@ const { updateQuickbooksEmployee } = await import('../../../src/handlers/update-
 const { updateQuickbooksPurchase } = await import('../../../src/handlers/update-quickbooks-purchase.handler');
 const { updateQuickbooksBillPayment } = await import('../../../src/handlers/update-quickbooks-bill-payment.handler');
 const { updateQuickbooksJournalEntry } = await import('../../../src/handlers/update-quickbooks-journal-entry.handler');
+const { updateQuickbooksInvoice } = await import('../../../src/handlers/update-quickbooks-invoice.handler');
+const { updateQuickbooksItem } = await import('../../../src/handlers/update-quickbooks-item.handler');
+const { updateQuickbooksEstimate } = await import('../../../src/handlers/update-quickbooks-estimate.handler');
+const { UpdateInvoiceTool } = await import('../../../src/tools/update-invoice.tool');
+const { UpdateItemTool } = await import('../../../src/tools/update-item.tool');
+const { UpdateEstimateTool } = await import('../../../src/tools/update-estimate.tool');
 const { UpdateCustomerTool } = await import('../../../src/tools/update-customer.tool');
 const { UpdateVendorTool } = await import('../../../src/tools/update-vendor.tool');
 const { UpdateEmployeeTool } = await import('../../../src/tools/update-employee.tool');
@@ -35,18 +41,24 @@ const cases: Array<{
   { label: 'purchase', idKey: 'purchase_id', get: 'getPurchase', update: 'updatePurchase', handler: updateQuickbooksPurchase, tool: UpdatePurchaseTool, errorText: 'Error updating purchase', successText: 'Purchase updated' },
   { label: 'bill payment', idKey: 'bill_payment_id', get: 'getBillPayment', update: 'updateBillPayment', handler: updateQuickbooksBillPayment, tool: UpdateBillPaymentTool, errorText: 'Error updating bill payment', successText: 'Bill payment updated' },
   { label: 'journal entry', idKey: 'journal_entry_id', get: 'getJournalEntry', update: 'updateJournalEntry', handler: updateQuickbooksJournalEntry, tool: UpdateJournalEntryTool, errorText: 'Error updating journal entry', successText: 'Journal entry updated' },
+  { label: 'invoice', idKey: 'invoice_id', get: 'getInvoice', update: 'updateInvoice', handler: updateQuickbooksInvoice, tool: UpdateInvoiceTool, errorText: 'Error updating invoice', successText: 'Invoice updated' },
+  { label: 'item', idKey: 'item_id', get: 'getItem', update: 'updateItem', handler: updateQuickbooksItem, tool: UpdateItemTool, errorText: 'Error updating item', successText: 'Item updated' },
+  { label: 'estimate', idKey: 'estimate_id', get: 'getEstimate', update: 'updateEstimate', handler: updateQuickbooksEstimate, tool: UpdateEstimateTool, errorText: 'Error updating estimate', successText: 'Estimate updated' },
 ];
 
 describe.each(cases)('sparse update: $label', ({ label, idKey, get, update, handler, tool, errorText, successText }) => {
   const getMock = () => (mockQuickBooksInstance as any)[get];
   const updateMock = () => (mockQuickBooksInstance as any)[update];
-  const existing = { Id: '9', SyncToken: '3', Notes: 'keep me', Nested: { a: 1 } };
+  const existing = {
+    Id: '9', SyncToken: '3', Notes: 'keep me', Nested: { a: 1 },
+    TaxIdentifier: 'XXXXXXX6789', SSN: 'XXX-XX-6789', PrimaryTaxIdentifier: 'XXXXXXX6789', MetaData: { CreateTime: 'x' },
+  };
 
   beforeEach(() => {
     resetAllMocks();
   });
 
-  it('keeps existing fields and sends sparse:true with the fetched SyncToken', async () => {
+  it('sends only Id, the fetched SyncToken, sparse:true and the patch fields', async () => {
     getMock().mockImplementation((_id: any, cb: any) => cb(null, existing));
     updateMock().mockImplementation((payload: any, cb: any) => cb(null, { ...payload, SyncToken: '4' }));
 
@@ -55,7 +67,29 @@ describe.each(cases)('sparse update: $label', ({ label, idKey, get, update, hand
     expect(result.isError).toBe(false);
     expect(getMock().mock.calls[0][0]).toBe('9');
     const payload = updateMock().mock.calls[0][0];
-    expect(payload).toMatchObject({ Id: '9', SyncToken: '3', sparse: true, PrivateNote: 'new', Notes: 'keep me', Nested: { a: 1 } });
+    // Omitted fields stay server-side (sparse); masked/read-only values from the fetch are never echoed back.
+    expect(payload).toEqual({ Id: '9', SyncToken: '3', sparse: true, PrivateNote: 'new' });
+  });
+
+  it('never echoes masked tax identifiers or read-only fields from the fetched record', async () => {
+    getMock().mockImplementation((_id: any, cb: any) => cb(null, existing));
+    updateMock().mockImplementation((payload: any, cb: any) => cb(null, payload));
+
+    await handler({ [idKey]: '9', patch: { Active: true } });
+
+    const payload = updateMock().mock.calls[0][0];
+    for (const k of ['TaxIdentifier', 'SSN', 'PrimaryTaxIdentifier', 'MetaData', 'Notes', 'Nested']) expect(payload).not.toHaveProperty(k);
+  });
+
+  it('strips void and sparse keys (any case) from the patch so an update can never void', async () => {
+    getMock().mockImplementation((_id: any, cb: any) => cb(null, existing));
+    updateMock().mockImplementation((payload: any, cb: any) => cb(null, payload));
+
+    await handler({ [idKey]: '9', patch: { void: true, Void: 'true', VOID: true, Sparse: false, PrivateNote: 'n' } });
+
+    const payload = updateMock().mock.calls[0][0];
+    expect(Object.keys(payload).filter((k) => k.toLowerCase() === 'void')).toEqual([]);
+    expect(payload).toEqual({ Id: '9', SyncToken: '3', sparse: true, PrivateNote: 'n' });
   });
 
   it('lets a SyncToken in the patch override the fetched one, but not Id or sparse', async () => {
@@ -95,8 +129,9 @@ describe.each(cases)('sparse update: $label', ({ label, idKey, get, update, hand
     expect(tool.schema.safeParse({ [idKey]: '', patch: {} }).success).toBe(false);
     expect(tool.schema.safeParse({ [idKey]: '9' }).success).toBe(false);
     expect(tool.description).toContain('Changes only the fields you send in `patch`');
+    expect(tool.description).toContain('Nested objects (e.g. BillAddr, ShipAddr, PrimaryEmailAddr) replace the whole object');
     // Only entities that carry a Line array warn that it replaces all lines.
-    if (['customer', 'vendor', 'employee'].includes(label)) expect(tool.description).not.toContain('Line');
+    if (['customer', 'vendor', 'employee', 'item'].includes(label)) expect(tool.description).not.toContain('Line');
     else expect(tool.description).toContain('A `Line` array replaces all lines.');
   });
 
@@ -105,7 +140,7 @@ describe.each(cases)('sparse update: $label', ({ label, idKey, get, update, hand
     updateMock().mockImplementation((payload: any, cb: any) => cb(null, { Id: '9' }));
     const ok = await tool.handler({ params: { [idKey]: '9', patch: {} } });
     const text = ok.content.map((c: any) => c.text).join('|');
-    expect(text).toContain('"Id":"9"');
+    expect(text).toMatch(/"Id":\s*"9"/);
     if (successText) expect(text).toContain(successText);
 
     updateMock().mockImplementation((_p: any, cb: any) => cb(new Error('boom')));

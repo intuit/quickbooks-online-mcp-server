@@ -1,6 +1,7 @@
 import { QuickbooksClient } from "../clients/quickbooks-client.js";
 import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
+import { cleanPatch } from "../helpers/sparse-patch.js";
 
 // QBO bill updates are a FULL overwrite (sparse:false): any field omitted from the
 // payload is deleted server-side. Callers routinely omit line-level ClassRef and
@@ -112,7 +113,7 @@ export async function updateQuickbooksBill(bill: any): Promise<ToolResponse<any>
       );
     });
 
-    const merged = mergeBill(current, bill);
+    const merged = mergeBill(current, cleanPatch(bill));
 
     const updated = await new Promise<any>((resolve, reject) => {
       quickbooks.updateBill(merged, (err: any, b: any) =>

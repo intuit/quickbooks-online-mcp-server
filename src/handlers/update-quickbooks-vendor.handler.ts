@@ -1,6 +1,7 @@
 import { QuickbooksClient } from "../clients/quickbooks-client.js";
 import { ToolResponse } from "../types/tool-response.js";
 import { formatError } from "../helpers/format-error.js";
+import { buildSparsePayload } from "../helpers/sparse-patch.js";
 
 export interface UpdateVendorInput {
   vendor_id: string;
@@ -8,8 +9,8 @@ export interface UpdateVendorInput {
 }
 
 /**
- * Sparse-update a vendor in QuickBooks Online. Fetches the current record so
- * callers only send the fields they want to change (a caller-supplied
+ * Sparse-update a vendor in QuickBooks Online. Fetches the current record only for
+ * its SyncToken so callers only send the fields they want to change (a caller-supplied
  * SyncToken in the patch wins over the fetched one).
  */
 export async function updateQuickbooksVendor({ vendor_id, patch }: UpdateVendorInput): Promise<ToolResponse<any>> {
@@ -20,7 +21,7 @@ export async function updateQuickbooksVendor({ vendor_id, patch }: UpdateVendorI
       (quickbooks as any).getVendor(vendor_id, (e: any, found: any) => (e ? rej(e) : res(found)));
     });
 
-    const updatePayload = { ...existing, ...patch, Id: vendor_id, sparse: true };
+    const updatePayload = buildSparsePayload(vendor_id, existing, patch);
 
     return new Promise((resolve) => {
       quickbooks.updateVendor(updatePayload, (err: any, updated: any) => {

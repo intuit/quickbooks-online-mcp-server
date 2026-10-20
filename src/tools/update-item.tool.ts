@@ -4,7 +4,7 @@ import { z } from "zod";
 
 const toolName = "update_item";
 const toolDescription =
-  "Updates an existing item in QuickBooks Online by ID. Changes only the fields you send; other fields are kept.";
+  "Updates an existing item in QuickBooks Online by ID. Changes only the fields you send in `patch`; other fields are kept. Nested objects (e.g. BillAddr, ShipAddr, PrimaryEmailAddr) replace the whole object — send all of its sub-fields.";
 
 const toolSchema = z.object({
   item_id: z.string().min(1),
