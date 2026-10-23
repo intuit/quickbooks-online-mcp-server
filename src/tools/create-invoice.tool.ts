@@ -17,6 +17,13 @@ const lineItemSchema = z.object({
     .describe(
       "Tax code for this line: a TaxCode Id for non-US companies (use search_tax_codes), or 'TAX'/'NON' for US companies"
     ),
+  class_ref: z
+    .string()
+    .min(1)
+    .optional()
+    .describe(
+      "Class Id (not name). Look it up with search_classes. Requires per-line class tracking (one class per row) in QuickBooks Plus or Advanced."
+    ),
   service_date: z
     .string()
     .min(1)

@@ -4,7 +4,7 @@ import { z } from "zod";
 
 const toolName = "create_estimate";
 const toolDescription =
-  "Create an estimate in QuickBooks Online. Accepts a raw QBO Estimate object; per-line tax codes go in Line[].SalesItemLineDetail.TaxCodeRef ({ value: <TaxCode Id> } for non-US companies, 'TAX'/'NON' for US).";
+  "Create an estimate in QuickBooks Online. Accepts a raw QBO Estimate object; per-line tax codes go in Line[].SalesItemLineDetail.TaxCodeRef ({ value: <TaxCode Id> } for non-US companies, 'TAX'/'NON' for US), and per-line classes in Line[].SalesItemLineDetail.ClassRef ({ value: <Class Id> }).";
 const toolSchema = z.object({ estimate: z.any() });
 
 const toolHandler = async (args: any) => {

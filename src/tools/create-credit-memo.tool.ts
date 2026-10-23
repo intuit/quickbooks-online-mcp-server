@@ -11,6 +11,13 @@ const lineItemSchema = z.object({
   unit_price: z.number().nonnegative().describe("Unit price"),
   description: z.string().optional().describe("Line description"),
   tax_code_ref: z.string().min(1).optional().describe("Tax code for this line: a TaxCode Id for non-US companies (use search_tax_codes), or 'TAX'/'NON' for US companies"),
+  class_ref: z
+    .string()
+    .min(1)
+    .optional()
+    .describe(
+      "Class Id (not name). Look it up with search_classes. Requires per-line class tracking (one class per row) in QuickBooks Plus or Advanced."
+    ),
 });
 
 const toolSchema = z.object({

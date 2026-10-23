@@ -67,4 +67,26 @@ describe('Create Invoice Handler - template fields', () => {
     expect(payload.BillEmail).toBeUndefined();
     expect(payload.Line[0].SalesItemLineDetail.ServiceDate).toBeUndefined();
   });
+
+  it('should map per-line class_ref to SalesItemLineDetail.ClassRef', async () => {
+    mockQuickBooksInstance.createInvoice.mockImplementation((_payload: any, cb: any) =>
+      cb(null, {
+        Id: '804',
+        Line: [
+          {
+            DetailType: 'SalesItemLineDetail',
+            SalesItemLineDetail: { ClassRef: { value: '682828' } },
+          },
+        ],
+      })
+    );
+
+    await createQuickbooksInvoice({
+      customer_ref: '42',
+      line_items: [{ item_ref: '1', qty: 1, unit_price: 100, class_ref: '682828' }],
+    });
+
+    const payload = mockQuickBooksInstance.createInvoice.mock.calls[0][0] as any;
+    expect(payload.Line[0].SalesItemLineDetail.ClassRef).toEqual({ value: '682828' });
+  });
 });

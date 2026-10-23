@@ -3,7 +3,8 @@ import { ToolDefinition } from "../types/tool-definition.js";
 import { z } from "zod";
 
 const toolName = "search_classes";
-const toolDescription = "Search for classes in QuickBooks Online with optional filters.";
+const toolDescription =
+  "Search for classes in QuickBooks Online with optional filters. Each result includes the Class Id to pass as class_ref on invoice, sales receipt, credit memo, refund receipt, bill, and vendor credit line items.";
 const toolSchema = z.object({
   name: z.string().optional().describe("Filter by class name"),
   active: z.boolean().optional().describe("Filter by active status"),
