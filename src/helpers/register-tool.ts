@@ -1,6 +1,14 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ToolDefinition } from "../types/tool-definition.js";
 import { z } from "zod";
+import {
+  collectAndStrip,
+  deepPermissiveSchema,
+  nestedUnsupportedWarning,
+  unsupportedParamsWarning,
+} from "./unsupported-params.js";
+
+export { unsupportedParamsWarning };
 
 /**
  * Defines CRUD categories for tools
@@ -96,22 +104,6 @@ export function permissiveParamsSchema<T>(schema: T): T {
   return typeof anySchema?.passthrough === "function" ? anySchema.passthrough() : schema;
 }
 
-/** Human-readable notice naming parameters the tool does not support. */
-export function unsupportedParamsWarning(
-  toolName: string,
-  known: Set<string> | null,
-  params: unknown
-): string | null {
-  if (!known || !params || typeof params !== "object" || Array.isArray(params)) return null;
-  const extras = Object.keys(params as Record<string, unknown>).filter((k) => !known.has(k));
-  if (extras.length === 0) return null;
-  return (
-    `WARNING: ${toolName} does not support ${extras.length === 1 ? "this parameter" : "these parameters"}: ` +
-    `${extras.join(", ")}. ${extras.length === 1 ? "It was" : "They were"} IGNORED - the value did not reach ` +
-    `QuickBooks. Supported parameters: ${[...known].sort().join(", ")}.`
-  );
-}
-
 export function RegisterTool<T extends z.ZodType<any, any>>(
   server: McpServer,
   toolDefinition: ToolDefinition<T>
@@ -119,7 +111,7 @@ export function RegisterTool<T extends z.ZodType<any, any>>(
   if (isToolDisabled(toolDefinition.name)) return;
 
   const known = knownParamKeys(toolDefinition.schema);
-  const paramsSchema = permissiveParamsSchema(toolDefinition.schema);
+  const paramsSchema = permissiveParamsSchema(deepPermissiveSchema(toolDefinition.schema));
   const baseHandler = toolDefinition.handler as unknown as (...a: any[]) => Promise<any>;
 
   const handler = (async (...a: any[]) => {
@@ -127,8 +119,9 @@ export function RegisterTool<T extends z.ZodType<any, any>>(
     let warning: string | null = null;
     try {
       const params = (a[0] as any)?.params;
-      warning = unsupportedParamsWarning(toolDefinition.name, known, params);
-      if (warning && known && params && typeof params === "object" && !Array.isArray(params)) {
+      const stripped = collectAndStrip(toolDefinition.schema, params);
+      warning = nestedUnsupportedWarning(toolDefinition.name, known, stripped, params);
+      if (warning && params && typeof params === "object" && !Array.isArray(params)) {
         // Strip unknown keys before the handler runs. The permissive schema
         // exists only so they can be SEEN; it must not change what reaches
         // QuickBooks. Several search tools destructure their params with a rest
@@ -136,11 +129,7 @@ export function RegisterTool<T extends z.ZodType<any, any>>(
         // search-customers, search-estimates, search-vendors), so an unknown key
         // left in place would become a real SQL filter - quietly changing which
         // records the search returns while this warning claimed it was ignored.
-        const cleaned: Record<string, unknown> = {};
-        for (const [k, v] of Object.entries(params as Record<string, unknown>)) {
-          if (known.has(k)) cleaned[k] = v;
-        }
-        callArgs = [{ ...(a[0] as any), params: cleaned }, ...a.slice(1)];
+        callArgs = [{ ...(a[0] as any), params: stripped.cleaned }, ...a.slice(1)];
       }
     } catch {
       /* diagnostics must never break a working call */

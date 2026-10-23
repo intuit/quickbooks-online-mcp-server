@@ -323,6 +323,10 @@ If upgrading from the original Intuit implementation:
 
 ## [Unreleased]
 
+### Fixed
+
+- Unsupported-parameter warnings now cover nested fields such as `line_items[]` (#140).
+
 ### Planned
 
 - Integration tests with QuickBooks sandbox

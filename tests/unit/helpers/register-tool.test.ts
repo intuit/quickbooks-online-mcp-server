@@ -180,6 +180,110 @@ describe("unsupported parameter reporting", () => {
     expect(result.content[1].text).toBe("ok"); // original response preserved
   });
 
+  it("uses byte-identical top-level warning when nested arrays have no unknown keys", async () => {
+    const line = z.object({ item_ref: z.string(), qty: z.number(), unit_price: z.number() });
+    const schema = z.object({
+      customer_ref: z.string(),
+      line_items: z.array(line).min(1),
+    });
+    const params = {
+      customer_ref: "4",
+      ship_date: "2026-10-21",
+      line_items: [{ item_ref: "4", qty: 1, unit_price: 1 }],
+    };
+    const known = knownParamKeys(schema);
+    const expected = unsupportedParamsWarning("create_invoice", known, params);
+    const { result } = await runRegistered("create_invoice", schema, params);
+    expect(result.content[0].text).toBe(expected);
+    expect(result.content[0].text).not.toContain("Supported in");
+    expect(result.content[1].text).toBe("ok");
+  });
+
+  it("shows Supported in for nested plain objects with unknown keys", async () => {
+    const schema = z.object({
+      id: z.string(),
+      sync_token: z.string(),
+      company_addr: z
+        .object({
+          line1: z.string().optional(),
+          city: z.string().optional(),
+        })
+        .optional(),
+    });
+    const params = {
+      id: "1",
+      sync_token: "0",
+      company_addr: { line1: "123 Main", zzz: "x" },
+    };
+    const { result } = await runRegistered("update_company_info", schema, params);
+    const warning = result.content[0].text as string;
+    expect(warning).toContain("company_addr.zzz");
+    expect(warning).toContain("\nSupported in company_addr: city, line1.");
+  });
+
+  it("lists Supported in only for array locations that had unknown keys", async () => {
+    const line = z.object({ item_ref: z.string(), qty: z.number(), unit_price: z.number() });
+    const linkedTxn = z.object({ txn_id: z.string(), txn_type: z.string() });
+    const schema = z.object({
+      customer_ref: z.string(),
+      line_items: z.array(line).min(1),
+      linked_txn: z.array(linkedTxn).optional(),
+    });
+    const params = {
+      customer_ref: "4",
+      line_items: [{ item_ref: "4", qty: 1, unit_price: 1, class_ref: "682828" }],
+      linked_txn: [{ txn_id: "1", txn_type: "Invoice" }],
+    };
+    const { result } = await runRegistered("create_invoice", schema, params);
+    const warning = result.content[0].text as string;
+    expect(warning).toContain("line_items[0].class_ref");
+    expect(warning).toContain("\nSupported in line_items[]:");
+    expect(warning).not.toMatch(/Supported in linked_txn/);
+  });
+
+  it("strips nested unknown keys and names them in the warning", async () => {
+    const line = z.object({ item_ref: z.string(), qty: z.number(), unit_price: z.number() });
+    const schema = z.object({
+      customer_ref: z.string(),
+      line_items: z.array(line),
+    });
+    const { result, seenByHandler } = await runRegistered("create_invoice", schema, {
+      customer_ref: "4",
+      line_items: [{ item_ref: "4", qty: 1, unit_price: 1, class_ref: "682828" }],
+    });
+    expect(seenByHandler).toEqual({
+      customer_ref: "4",
+      line_items: [{ item_ref: "4", qty: 1, unit_price: 1 }],
+    });
+    expect(result.content[0].text).toContain("line_items[0].class_ref");
+    expect(result.content[0].text).toContain("Supported in line_items[]:");
+    expect(result.content[0].text).toContain("\nSupported in line_items[]:");
+    expect(result.content[1].text).toBe("ok");
+  });
+
+  it("continues the call when diagnostics throw", async () => {
+    const schema = z.object({ a: z.string() });
+    const params: Record<string, unknown> = {};
+    Object.defineProperty(params, "a", {
+      enumerable: true,
+      get() {
+        throw new Error("poison");
+      },
+    });
+    const seen: unknown[] = [];
+    const handler = jest.fn(async (args: unknown) => {
+      seen.push(args);
+      return { content: [{ type: "text", text: "ok" }] };
+    });
+    const server = { tool: jest.fn() } as unknown as McpServer;
+    RegisterTool(server, { name: "read_invoice", description: "d", schema, handler } as any);
+    const registered = (server.tool as jest.Mock).mock.calls[0][3] as any;
+    const result = await registered({ params });
+    expect(result.content).toHaveLength(1);
+    expect(result.content[0].text).toBe("ok");
+    expect(seen).toHaveLength(1);
+  });
+
   it("strips unknown keys so they cannot reach QuickBooks", async () => {
     // search-bills/customers/estimates/vendors spread leftover params into query
     // criteria; a key left in place would become a real SQL filter.
