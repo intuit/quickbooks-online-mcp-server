@@ -3,6 +3,18 @@
     "version": "0.0.1",
     "description": "MCP server implementation for QuickBooks Online integration",
     "license": "MIT",
+    "author": {
+        "name": "Intuit",
+        "url": "https://www.intuit.com"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/intuit/quickbooks-online-mcp-server"
+    },
+    "homepage": "https://github.com/intuit/quickbooks-online-mcp-server",
+    "bugs": {
+        "url": "https://github.com/intuit/quickbooks-online-mcp-server/issues"
+    },
     "main": "dist/index.js",
     "type": "module",
     "bin": "./dist/index.js",
