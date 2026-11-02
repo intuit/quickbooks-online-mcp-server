@@ -14,3 +14,6 @@ start.cmd
 # Local capture output (may contain real account balances)
 capture-*.txt
 
+.mcpb-build
+*.mcpb
+

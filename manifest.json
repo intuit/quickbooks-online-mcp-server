@@ -1,0 +1,660 @@
+{
+  "$schema": "https://raw.githubusercontent.com/modelcontextprotocol/mcpb/main/schemas/mcpb-manifest-v0.4.schema.json",
+  "manifest_version": "0.4",
+  "name": "quickbooks-online",
+  "display_name": "QuickBooks Online",
+  "version": "0.0.1",
+  "description": "Connect MCP clients to QuickBooks Online accounting tools.",
+  "long_description": "Access QuickBooks Online entities and financial reports from an MCP client. Installation requires an Intuit Developer app and a refresh token from a one-time browser OAuth authorization; the bundle configures credentials but does not bypass QuickBooks authorization.",
+  "author": {
+    "name": "Intuit",
+    "url": "https://www.intuit.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/intuit/quickbooks-online-mcp-server"
+  },
+  "homepage": "https://github.com/intuit/quickbooks-online-mcp-server",
+  "documentation": "https://github.com/intuit/quickbooks-online-mcp-server#readme",
+  "support": "https://github.com/intuit/quickbooks-online-mcp-server/issues",
+  "server": {
+    "type": "node",
+    "entry_point": "dist/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": [
+        "${__dirname}/dist/index.js"
+      ],
+      "env": {
+        "QUICKBOOKS_CLIENT_ID": "${user_config.client_id}",
+        "QUICKBOOKS_CLIENT_SECRET": "${user_config.client_secret}",
+        "QUICKBOOKS_REFRESH_TOKEN": "${user_config.refresh_token}",
+        "QUICKBOOKS_REALM_ID": "${user_config.realm_id}",
+        "QUICKBOOKS_ENVIRONMENT": "${user_config.environment}"
+      }
+    }
+  },
+  "tools": [
+    {
+      "name": "create_account",
+      "description": "Create a chart‑of‑accounts entry in QuickBooks Online. To create a sub‑account (nested under a parent), pass parent_id with the parent account's Id; the new account's AccountType must match the parent's."
+    },
+    {
+      "name": "create_attachable",
+      "description": "Create an attachable (file attachment) in QuickBooks Online. File content can come from file_path (a file on the machine running this server — preferred for local files of any size), file_url (an https URL the server downloads), or base64_content (inline bytes — only practical for small files). Precedence: file_url/file_path (mutually exclusive) win over base64_content. With no file source, creates a metadata-only attachment record. Max file size 100 MB (QBO limit)."
+    },
+    {
+      "name": "create_bill_payment",
+      "description": "Create a bill payment in QuickBooks Online."
+    },
+    {
+      "name": "create_class",
+      "description": "Create a new class in QuickBooks Online for categorizing transactions."
+    },
+    {
+      "name": "create_credit_memo",
+      "description": "Create a credit memo (customer credit) in QuickBooks Online."
+    },
+    {
+      "name": "create_customer",
+      "description": "Create a customer in QuickBooks Online. Accepts a raw QBO Customer object (DisplayName required). Tax info for non-US companies: set PrimaryTaxIdentifier to the customer's tax registration number (e.g. EU VAT number / CIF), and optionally Taxable (boolean) and DefaultTaxCodeRef ({ value: <TaxCode Id> }) for their default sales tax code. Responses always return PrimaryTaxIdentifier masked."
+    },
+    {
+      "name": "create_department",
+      "description": "Create a new department in QuickBooks Online for location/department tracking."
+    },
+    {
+      "name": "create_deposit",
+      "description": "Create a bank deposit in QuickBooks Online."
+    },
+    {
+      "name": "create_employee",
+      "description": "Create an employee in QuickBooks Online."
+    },
+    {
+      "name": "create_estimate",
+      "description": "Create an estimate in QuickBooks Online. Accepts a raw QBO Estimate object; per-line tax codes go in Line[].SalesItemLineDetail.TaxCodeRef ({ value: <TaxCode Id> } for non-US companies, 'TAX'/'NON' for US)."
+    },
+    {
+      "name": "create_invoice",
+      "description": "Create an invoice in QuickBooks Online."
+    },
+    {
+      "name": "create_item",
+      "description": "Create an item in QuickBooks Online."
+    },
+    {
+      "name": "create_journal_entry",
+      "description": "Create a journal entry in QuickBooks Online. Description goes on the Line level, not inside JournalEntryLineDetail."
+    },
+    {
+      "name": "create_payment",
+      "description": "Create a payment (receive money from customer) in QuickBooks Online."
+    },
+    {
+      "name": "create_payment_method",
+      "description": "Create a new payment method in QuickBooks Online (e.g., Cash, Check, Credit Card)."
+    },
+    {
+      "name": "create_purchase",
+      "description": "Create a purchase in QuickBooks Online."
+    },
+    {
+      "name": "create_purchase_order",
+      "description": "Create a purchase order in QuickBooks Online."
+    },
+    {
+      "name": "create_refund_receipt",
+      "description": "Create a refund receipt (customer refund) in QuickBooks Online."
+    },
+    {
+      "name": "create_sales_receipt",
+      "description": "Create a sales receipt (immediate payment sale) in QuickBooks Online."
+    },
+    {
+      "name": "create_term",
+      "description": "Create a new payment term in QuickBooks Online (e.g., Net 30, Due on Receipt)."
+    },
+    {
+      "name": "create_time_activity",
+      "description": "Create a time activity (time tracking entry) in QuickBooks Online."
+    },
+    {
+      "name": "create_transfer",
+      "description": "Create a bank transfer between accounts in QuickBooks Online."
+    },
+    {
+      "name": "create_vendor_credit",
+      "description": "Create a vendor credit in QuickBooks Online. Supports per-line sales tax (tax_code_ref) and class tracking (class_ref) the same way bills do — for companies using the global tax model (CA/UK/AU etc.), set each line's tax_code_ref and a top-level global_tax_calculation so QBO auto-calculates TxnTaxDetail."
+    },
+    {
+      "name": "create-bill",
+      "description": "Create a bill in QuickBooks Online."
+    },
+    {
+      "name": "create-vendor",
+      "description": "Create a vendor in QuickBooks Online."
+    },
+    {
+      "name": "delete_attachable",
+      "description": "Delete an attachable from QuickBooks Online."
+    },
+    {
+      "name": "delete_bill_payment",
+      "description": "Delete (make inactive) a bill payment in QuickBooks Online."
+    },
+    {
+      "name": "delete_credit_memo",
+      "description": "Delete (void) a credit memo in QuickBooks Online."
+    },
+    {
+      "name": "delete_customer",
+      "description": "Delete (make inactive) a customer in QuickBooks Online."
+    },
+    {
+      "name": "delete_deposit",
+      "description": "Delete a deposit in QuickBooks Online."
+    },
+    {
+      "name": "delete_employee",
+      "description": "Delete (make inactive) an employee in QuickBooks Online."
+    },
+    {
+      "name": "delete_estimate",
+      "description": "Delete (void) an estimate in QuickBooks Online."
+    },
+    {
+      "name": "delete_invoice",
+      "description": "Delete (void) an invoice in QuickBooks Online."
+    },
+    {
+      "name": "delete_item",
+      "description": "Delete (make inactive) an item in QuickBooks Online."
+    },
+    {
+      "name": "delete_journal_entry",
+      "description": "Delete (make inactive) a journal entry in QuickBooks Online."
+    },
+    {
+      "name": "delete_payment",
+      "description": "Delete (void) a payment in QuickBooks Online."
+    },
+    {
+      "name": "delete_purchase",
+      "description": "Delete (make inactive) a purchase in QuickBooks Online."
+    },
+    {
+      "name": "delete_purchase_order",
+      "description": "Delete a purchase order in QuickBooks Online."
+    },
+    {
+      "name": "delete_refund_receipt",
+      "description": "Delete (void) a refund receipt in QuickBooks Online."
+    },
+    {
+      "name": "delete_sales_receipt",
+      "description": "Delete (void) a sales receipt in QuickBooks Online."
+    },
+    {
+      "name": "delete_time_activity",
+      "description": "Delete a time activity in QuickBooks Online."
+    },
+    {
+      "name": "delete_transfer",
+      "description": "Delete a transfer in QuickBooks Online."
+    },
+    {
+      "name": "delete_vendor_credit",
+      "description": "Delete a vendor credit in QuickBooks Online."
+    },
+    {
+      "name": "delete-bill",
+      "description": "Delete a bill in QuickBooks Online."
+    },
+    {
+      "name": "delete-vendor",
+      "description": "Delete a vendor in QuickBooks Online."
+    },
+    {
+      "name": "get_account",
+      "description": "Get a single account by ID from QuickBooks Online."
+    },
+    {
+      "name": "get_aged_payables",
+      "description": "Generate an Aged Payables (A/P Aging) report from QuickBooks Online showing outstanding vendor bills."
+    },
+    {
+      "name": "get_aged_receivables",
+      "description": "Generate an Aged Receivables (A/R Aging) report from QuickBooks Online showing outstanding customer invoices."
+    },
+    {
+      "name": "get_attachable",
+      "description": "Retrieve a specific attachable from QuickBooks Online by ID."
+    },
+    {
+      "name": "get_balance_sheet",
+      "description": "Generate a Balance Sheet report from QuickBooks Online showing assets, liabilities, and equity."
+    },
+    {
+      "name": "get_bill_payment",
+      "description": "Get a bill payment by Id from QuickBooks Online."
+    },
+    {
+      "name": "get_cash_flow",
+      "description": "Generate a Statement of Cash Flows report from QuickBooks Online."
+    },
+    {
+      "name": "get_class",
+      "description": "Retrieve a specific class from QuickBooks Online by ID."
+    },
+    {
+      "name": "get_company_info",
+      "description": "Retrieve the company information from QuickBooks Online."
+    },
+    {
+      "name": "get_credit_memo",
+      "description": "Get a single credit memo by ID from QuickBooks Online."
+    },
+    {
+      "name": "get_customer",
+      "description": "Get a customer by Id from QuickBooks Online."
+    },
+    {
+      "name": "get_customer_balance",
+      "description": "Generate a Customer Balance report from QuickBooks Online showing outstanding balances by customer."
+    },
+    {
+      "name": "get_customer_sales",
+      "description": "Generate a Customer Sales report from QuickBooks Online showing sales by customer."
+    },
+    {
+      "name": "get_department",
+      "description": "Retrieve a specific department from QuickBooks Online by ID."
+    },
+    {
+      "name": "get_deposit",
+      "description": "Get a deposit by ID from QuickBooks Online."
+    },
+    {
+      "name": "get_employee",
+      "description": "Get an employee by Id from QuickBooks Online."
+    },
+    {
+      "name": "get_estimate",
+      "description": "Get an estimate by Id from QuickBooks Online."
+    },
+    {
+      "name": "get_general_ledger",
+      "description": "Generate a General Ledger report from QuickBooks Online showing detailed transaction history."
+    },
+    {
+      "name": "get_invoice_pdf",
+      "description": "Download a QuickBooks Online invoice as a PDF. Returns the bytes inline (base64) by default. If output_path is supplied, the PDF is written to disk instead — but only when the QBO_PDF_OUTPUT_DIR environment variable is set to an allowlist directory that the resolved path must live inside."
+    },
+    {
+      "name": "get_journal_entry",
+      "description": "Get a journal entry by Id from QuickBooks Online."
+    },
+    {
+      "name": "get_payment",
+      "description": "Get a single payment by ID from QuickBooks Online."
+    },
+    {
+      "name": "get_payment_method",
+      "description": "Retrieve a specific payment method from QuickBooks Online by ID."
+    },
+    {
+      "name": "get_preferences",
+      "description": "Retrieve company preferences from QuickBooks Online, including accounting method, class and department tracking, and purchase order settings."
+    },
+    {
+      "name": "get_profit_and_loss",
+      "description": "Generate a Profit and Loss (Income Statement) report from QuickBooks Online."
+    },
+    {
+      "name": "get_purchase",
+      "description": "Get a purchase by Id from QuickBooks Online."
+    },
+    {
+      "name": "get_purchase_order",
+      "description": "Get a single purchase order by ID from QuickBooks Online."
+    },
+    {
+      "name": "get_refund_receipt",
+      "description": "Get a single refund receipt by ID from QuickBooks Online."
+    },
+    {
+      "name": "get_sales_receipt",
+      "description": "Get a single sales receipt by ID from QuickBooks Online."
+    },
+    {
+      "name": "get_tax_agency",
+      "description": "Retrieve a specific tax agency from QuickBooks Online by ID."
+    },
+    {
+      "name": "get_tax_code",
+      "description": "Retrieve a specific tax code from QuickBooks Online by ID."
+    },
+    {
+      "name": "get_tax_rate",
+      "description": "Retrieve a specific tax rate from QuickBooks Online by ID."
+    },
+    {
+      "name": "get_term",
+      "description": "Retrieve a specific payment term from QuickBooks Online by ID."
+    },
+    {
+      "name": "get_time_activity",
+      "description": "Get a time activity by ID from QuickBooks Online."
+    },
+    {
+      "name": "get_transfer",
+      "description": "Get a transfer by ID from QuickBooks Online."
+    },
+    {
+      "name": "get_trial_balance",
+      "description": "Generate a Trial Balance report from QuickBooks Online showing all account balances."
+    },
+    {
+      "name": "get_vendor_balance",
+      "description": "Generate a Vendor Balance report from QuickBooks Online showing outstanding balances by vendor."
+    },
+    {
+      "name": "get_vendor_credit",
+      "description": "Get a vendor credit by ID from QuickBooks Online."
+    },
+    {
+      "name": "get_vendor_expenses",
+      "description": "Generate a Vendor Expenses report from QuickBooks Online showing expenses by vendor."
+    },
+    {
+      "name": "get-bill",
+      "description": "Get a bill by ID from QuickBooks Online."
+    },
+    {
+      "name": "get-vendor",
+      "description": "Get a vendor by ID from QuickBooks Online."
+    },
+    {
+      "name": "read_invoice",
+      "description": "Read a single invoice from QuickBooks Online by its ID."
+    },
+    {
+      "name": "read_item",
+      "description": "Read a single item in QuickBooks Online by its ID."
+    },
+    {
+      "name": "search_accounts",
+      "description": "Search chart‑of‑accounts entries using criteria."
+    },
+    {
+      "name": "search_attachables",
+      "description": "Search for attachables in QuickBooks Online with optional filters."
+    },
+    {
+      "name": "search_bill_payments",
+      "description": "Search bill payments in QuickBooks Online that match given criteria."
+    },
+    {
+      "name": "search_bills",
+      "description": "Search bills in QuickBooks Online that match given criteria."
+    },
+    {
+      "name": "search_budgets",
+      "description": "Search for budgets in QuickBooks Online. Returns Budget records with nested BudgetDetail line items (Amount, BudgetDate, AccountRef, ClassRef, CustomerRef, DepartmentRef, LocationRef). Budget is read-only in the QBO v3 API."
+    },
+    {
+      "name": "search_classes",
+      "description": "Search for classes in QuickBooks Online with optional filters."
+    },
+    {
+      "name": "search_credit_memos",
+      "description": "Search for credit memos in QuickBooks Online."
+    },
+    {
+      "name": "search_customers",
+      "description": "Search customers in QuickBooks Online that match given criteria."
+    },
+    {
+      "name": "search_departments",
+      "description": "Search for departments in QuickBooks Online with optional filters."
+    },
+    {
+      "name": "search_deposits",
+      "description": "Search for deposits in QuickBooks Online."
+    },
+    {
+      "name": "search_employees",
+      "description": "Search employees in QuickBooks Online that match given criteria."
+    },
+    {
+      "name": "search_estimates",
+      "description": "Search estimates in QuickBooks Online that match given criteria."
+    },
+    {
+      "name": "search_invoices",
+      "description": "Search invoices in QuickBooks Online using criteria (maps to node-quickbooks findInvoices)."
+    },
+    {
+      "name": "search_items",
+      "description": "Search items in QuickBooks Online using criteria (maps to node-quickbooks findItems)."
+    },
+    {
+      "name": "search_journal_entries",
+      "description": "Search journal entries in QuickBooks Online that match given criteria."
+    },
+    {
+      "name": "search_payment_methods",
+      "description": "Search for payment methods in QuickBooks Online with optional filters."
+    },
+    {
+      "name": "search_payments",
+      "description": "Search for payments in QuickBooks Online."
+    },
+    {
+      "name": "search_purchase_orders",
+      "description": "Search for purchase orders in QuickBooks Online."
+    },
+    {
+      "name": "search_purchases",
+      "description": "Search purchases in QuickBooks Online that match given criteria."
+    },
+    {
+      "name": "search_refund_receipts",
+      "description": "Search for refund receipts in QuickBooks Online."
+    },
+    {
+      "name": "search_sales_receipts",
+      "description": "Search for sales receipts in QuickBooks Online."
+    },
+    {
+      "name": "search_tax_agencies",
+      "description": "Search for tax agencies in QuickBooks Online with optional filters."
+    },
+    {
+      "name": "search_tax_codes",
+      "description": "Search for tax codes in QuickBooks Online with optional filters."
+    },
+    {
+      "name": "search_tax_rates",
+      "description": "Search for tax rates in QuickBooks Online with optional filters."
+    },
+    {
+      "name": "search_terms",
+      "description": "Search for payment terms in QuickBooks Online with optional filters."
+    },
+    {
+      "name": "search_time_activities",
+      "description": "Search for time activities in QuickBooks Online."
+    },
+    {
+      "name": "search_transfers",
+      "description": "Search for transfers in QuickBooks Online."
+    },
+    {
+      "name": "search_vendor_credits",
+      "description": "Search for vendor credits in QuickBooks Online."
+    },
+    {
+      "name": "search_vendors",
+      "description": "Search vendors in QuickBooks Online that match given criteria."
+    },
+    {
+      "name": "update_account",
+      "description": "Update an existing chart‑of‑accounts entry in Quickbooks."
+    },
+    {
+      "name": "update_attachable",
+      "description": "Update an existing attachable's metadata (file name, note, category, content type) in QuickBooks Online. This is metadata-only: it CANNOT replace the uploaded file bytes. To attach a different or corrected file, create a new attachable (create_attachable with file_path) and delete the old one."
+    },
+    {
+      "name": "update_bill_payment",
+      "description": "Update a bill payment in QuickBooks Online."
+    },
+    {
+      "name": "update_class",
+      "description": "Update an existing class in QuickBooks Online."
+    },
+    {
+      "name": "update_company_info",
+      "description": "Update the company information in QuickBooks Online."
+    },
+    {
+      "name": "update_credit_memo",
+      "description": "Update an existing credit memo in QuickBooks Online."
+    },
+    {
+      "name": "update_customer",
+      "description": "Update an existing customer in QuickBooks Online. The customer object must include Id and SyncToken (add sparse: true for a partial update). Tax info fields work as in create_customer (e.g. PrimaryTaxIdentifier for the tax registration number / EU VAT number / CIF, DefaultTaxCodeRef for the default sales tax code); responses always return PrimaryTaxIdentifier masked."
+    },
+    {
+      "name": "update_department",
+      "description": "Update an existing department in QuickBooks Online."
+    },
+    {
+      "name": "update_deposit",
+      "description": "Update a deposit in QuickBooks Online."
+    },
+    {
+      "name": "update_employee",
+      "description": "Update an employee in QuickBooks Online."
+    },
+    {
+      "name": "update_estimate",
+      "description": "Update an estimate in QuickBooks Online."
+    },
+    {
+      "name": "update_invoice",
+      "description": "Update an existing invoice in Quickbooks by ID (sparse update)."
+    },
+    {
+      "name": "update_item",
+      "description": "Update an existing item in Quickbooks by ID (sparse update)."
+    },
+    {
+      "name": "update_journal_entry",
+      "description": "Update a journal entry in QuickBooks Online."
+    },
+    {
+      "name": "update_payment",
+      "description": "Update an existing payment in QuickBooks Online."
+    },
+    {
+      "name": "update_payment_method",
+      "description": "Update an existing payment method in QuickBooks Online."
+    },
+    {
+      "name": "update_purchase",
+      "description": "Update a purchase in QuickBooks Online."
+    },
+    {
+      "name": "update_purchase_order",
+      "description": "Update an existing purchase order in QuickBooks Online."
+    },
+    {
+      "name": "update_refund_receipt",
+      "description": "Update an existing refund receipt in QuickBooks Online."
+    },
+    {
+      "name": "update_sales_receipt",
+      "description": "Update an existing sales receipt in QuickBooks Online."
+    },
+    {
+      "name": "update_term",
+      "description": "Update an existing payment term in QuickBooks Online."
+    },
+    {
+      "name": "update_time_activity",
+      "description": "Update a time activity in QuickBooks Online."
+    },
+    {
+      "name": "update_transfer",
+      "description": "Update a transfer in QuickBooks Online."
+    },
+    {
+      "name": "update_vendor_credit",
+      "description": "Update a vendor credit in QuickBooks Online. Providing line_items REPLACES the entire line array (fetch the current vendor credit first if you only want to modify one line); lines support per-line tax_code_ref and class_ref like bills."
+    },
+    {
+      "name": "update-bill",
+      "description": "Update a bill in QuickBooks Online. Performs a read-merge-write: the current bill is fetched and your changes are merged over it, so line-level ClassRef/TaxCodeRef and any other fields you omit are preserved (QBO bill updates are full overwrites). Pass bill.Id plus only the fields to change. Match an existing line by its Id; a line without an Id is added as a new line. SyncToken is optional — the latest is fetched automatically."
+    },
+    {
+      "name": "update-vendor",
+      "description": "Update a vendor in QuickBooks Online."
+    }
+  ],
+  "keywords": [
+    "quickbooks",
+    "accounting",
+    "finance",
+    "mcp"
+  ],
+  "license": "Apache-2.0",
+  "user_config": {
+    "client_id": {
+      "type": "string",
+      "title": "Intuit client ID",
+      "description": "Client ID from your Intuit Developer app.",
+      "required": true
+    },
+    "client_secret": {
+      "type": "string",
+      "title": "Intuit client secret",
+      "description": "Client secret from your Intuit Developer app.",
+      "sensitive": true,
+      "required": true
+    },
+    "refresh_token": {
+      "type": "string",
+      "title": "QuickBooks refresh token",
+      "description": "Refresh token obtained by completing the browser OAuth flow before installing the bundle.",
+      "sensitive": true,
+      "required": true
+    },
+    "realm_id": {
+      "type": "string",
+      "title": "QuickBooks company ID",
+      "description": "Realm ID for the QuickBooks Online company authorized by the refresh token.",
+      "required": true
+    },
+    "environment": {
+      "type": "string",
+      "title": "QuickBooks environment",
+      "description": "Use sandbox for a test company or production for a live company.",
+      "default": "sandbox",
+      "required": true
+    }
+  },
+  "compatibility": {
+    "platforms": [
+      "darwin",
+      "win32",
+      "linux"
+    ],
+    "runtimes": {
+      "node": ">=20.0.0"
+    }
+  },
+  "privacy_policies": []
+}

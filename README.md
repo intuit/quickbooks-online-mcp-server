@@ -52,6 +52,33 @@ npm install
 npm run build
 ```
 
+### Install via MCPB (Claude Desktop)
+
+You can install this server as an [MCP Bundle](https://github.com/modelcontextprotocol/mcpb) (`.mcpb`) for one-click setup in Claude Desktop and other MCPB-compatible hosts.
+
+1. **Create an Intuit Developer app** (sandbox is fine) and note the client ID and client secret.
+2. **Complete OAuth once** from a clone of this repository (the bundle does not run the browser flow for you):
+   ```bash
+   cp .env.example .env
+   # Fill QUICKBOOKS_CLIENT_ID and QUICKBOOKS_CLIENT_SECRET in .env
+   npm install && npm run build
+   npm run auth
+   ```
+   Copy the printed `QUICKBOOKS_REFRESH_TOKEN` and `QUICKBOOKS_REALM_ID` values.
+3. **Build or obtain a bundle** (maintainers and contributors):
+   ```bash
+   npm run bundle
+   ```
+   This produces `quickbooks-online-mcp-server-<version>.mcpb` in the repo root.
+4. **Install the `.mcpb` file** in Claude Desktop (Settings → Extensions / MCP Bundles) and enter:
+   - Intuit **client ID** and **client secret**
+   - **Refresh token** and **realm ID** from step 2
+   - **Environment** (`sandbox` by default, or `production` for a live company)
+
+After installation, the host injects those values as `QUICKBOOKS_*` environment variables when it starts the server. Keep the refresh token secure; the server may rotate it on use (see [Configuration](#configuration) for `QUICKBOOKS_TOKEN_STORE_PATH` on read-only installs).
+
+When you add or rename MCP tools, run `npm run manifest:sync` and commit the updated `manifest.json` (CI runs `npm run manifest:check` to prevent drift).
+
 ### Configuration
 
 Copy the template `.env.example` to `.env` in the root directory and fill in your values:
