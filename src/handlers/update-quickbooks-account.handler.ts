@@ -38,7 +38,8 @@ function normalizeParentRef(value: any): { value: string } | undefined {
 function normalizePatch(patch: Record<string, any>): Record<string, any> {
   const normalized: Record<string, any> = {};
   Object.entries(patch).forEach(([key, value]) => {
-    if (value === undefined) return;
+    // null means "clear this field"; handled in updateQuickbooksAccount.
+    if (value === undefined || value === null) return;
     if (key === "ParentRef") {
       const ref = normalizeParentRef(value);
       if (ref) normalized[key] = ref;
@@ -79,9 +80,14 @@ export async function updateQuickbooksAccount({ account_id, patch }: UpdateAccou
     // returns error 2020 ("Required parameter Name is missing"). We perform a
     // full-object update by spreading the freshly-fetched existing account
     // (which carries Name/AccountType/AccountSubType/Classification/SyncToken)
-    // and overlaying the caller's patch. sparse is intentionally not set.
-    const payload = { ...existing, ...normalizedPatch, Id: account_id };
-    delete (payload as any).sparse;
+    // and overlaying the caller's patch. sparse must be sent as false:
+    // node-quickbooks sets sparse:true on any entity that lacks the key.
+    const payload = { ...existing, ...normalizedPatch, Id: account_id, sparse: false };
+    // A full update clears a field only when it is absent from the body, so a
+    // patch value of null (e.g. { AcctNum: null }) removes the key entirely.
+    Object.entries(patch).forEach(([key, value]) => {
+      if (value === null) delete (payload as any)[key];
+    });
 
     return new Promise((resolve) => {
       (quickbooks as any).updateAccount(payload, (err: any, account: any) => {

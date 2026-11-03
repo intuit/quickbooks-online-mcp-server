@@ -13,7 +13,7 @@ describe('updateQuickbooksAccount re-parenting', () => {
     resetAllMocks();
   });
 
-  it('sends ParentRef as a reference object (not "[object Object]") and omits sparse', async () => {
+  it('sends ParentRef as a reference object (not "[object Object]") and sends sparse:false', async () => {
     const existing = {
       Id: '50',
       Name: 'Child Account',
@@ -40,7 +40,7 @@ describe('updateQuickbooksAccount re-parenting', () => {
     expect(captured.ParentRef).toEqual({ value: '40' });
     expect(typeof captured.ParentRef).toBe('object');
     expect(captured.SubAccount).toBe(true);
-    expect(captured.sparse).toBeUndefined();
+    expect(captured.sparse).toBe(false);
     // Full-object update carries existing Name/type through (required by QBO)
     expect(captured.Name).toBe('Child Account');
     expect(captured.AccountType).toBe('Income');

@@ -56,6 +56,31 @@ describe('createQuickbooksAccount', () => {
     expect(typeof captured.ParentRef).toBe('object');
   });
 
+  it('sends AcctNum when acct_num is supplied', async () => {
+    let captured: any;
+    mockQuickBooksInstance.createAccount.mockImplementation((payload: any, cb: any) => {
+      captured = payload;
+      cb(null, { Id: '12', Name: 'Rent', AcctNum: '6100' });
+    });
+
+    const result = await createQuickbooksAccount({ name: 'Rent', type: 'Expense', acct_num: '6100' });
+
+    expect(result.isError).toBe(false);
+    expect(captured.AcctNum).toBe('6100');
+  });
+
+  it('omits AcctNum when acct_num is not supplied', async () => {
+    let captured: any;
+    mockQuickBooksInstance.createAccount.mockImplementation((payload: any, cb: any) => {
+      captured = payload;
+      cb(null, { Id: '13', Name: 'Rent' });
+    });
+
+    await createQuickbooksAccount({ name: 'Rent', type: 'Expense' });
+
+    expect('AcctNum' in captured).toBe(false);
+  });
+
   it('propagates QBO errors', async () => {
     mockQuickBooksInstance.createAccount.mockImplementation((_payload: any, cb: any) =>
       cb(new Error('Duplicate name'), null)
