@@ -7,6 +7,7 @@ export interface CreateAccountInput {
   type: string; // e.g., Expense, Income, Bank, etc.
   sub_type?: string;
   description?: string;
+  acct_num?: string; // account number, sent as AcctNum
   // When set, create the account as a sub-account of this parent (the parent's
   // Id). SubAccount:true and ParentRef:{value:parent_id} are sent. The new
   // account's AccountType must match the parent's, or QBO rejects it.
@@ -33,6 +34,7 @@ const accountFieldTypeMap: Record<string, "string" | "boolean" | "number"> = {
   AccountType: "string",
   AccountSubType: "string",
   Description: "string",
+  AcctNum: "string",
   Classification: "string",
   Active: "boolean",
   SubAccount: "boolean",
@@ -77,6 +79,7 @@ export async function createQuickbooksAccount(data: CreateAccountInput): Promise
       AccountType: data.type,
       AccountSubType: data.sub_type,
       Description: data.description,
+      AcctNum: data.acct_num,
     };
 
     const payload = normalizeAccountPayload(basePayload);

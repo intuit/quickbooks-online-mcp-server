@@ -3,7 +3,9 @@ import { ToolDefinition } from "../types/tool-definition.js";
 import { z } from "zod";
 
 const toolName = "update_account";
-const toolDescription = "Update an existing chart‑of‑accounts entry in Quickbooks.";
+const toolDescription =
+  "Update an existing chart‑of‑accounts entry in Quickbooks. " +
+  "Set a field to null to clear it, e.g. {\"AcctNum\": null}.";
 
 const toolSchema = z.object({
   account_id: z.string().min(1),
