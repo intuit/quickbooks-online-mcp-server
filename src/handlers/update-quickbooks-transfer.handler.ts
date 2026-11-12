@@ -20,6 +20,17 @@ export async function updateQuickbooksTransfer(data: UpdateTransferInput): Promi
     if (data.amount !== undefined) payload.Amount = data.amount;
     if (data.private_note) payload.PrivateNote = data.private_note;
 
+    // QBO requires FromAccountRef, ToAccountRef and Amount on every Transfer update, sparse or not
+    // (error 2020 otherwise). Fill in whatever the caller left out from the current transfer.
+    if (!payload.FromAccountRef || !payload.ToAccountRef || payload.Amount === undefined) {
+      const current = await new Promise<any>((resolve, reject) => {
+        (quickbooks as any).getTransfer(data.id, (err: any, t: any) => (err ? reject(err) : resolve(t)));
+      });
+      payload.FromAccountRef ??= { value: current.FromAccountRef.value };
+      payload.ToAccountRef ??= { value: current.ToAccountRef.value };
+      payload.Amount ??= current.Amount;
+    }
+
     return new Promise((resolve) => {
       (quickbooks as any).updateTransfer(payload, (err: any, updated: any) => {
         if (err) resolve({ result: null, isError: true, error: formatError(err) });

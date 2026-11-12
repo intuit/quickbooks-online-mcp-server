@@ -371,7 +371,17 @@ describe('Deposit and Transfer Handlers', () => {
       expect(result.isError).toBe(true);
     });
 
+    // The transfer as QBO currently has it; used to fill required fields the caller omits.
+    const currentTransfer = {
+      Id: '1',
+      SyncToken: '0',
+      FromAccountRef: { value: 'current-from', name: 'Checking' },
+      ToAccountRef: { value: 'current-to', name: 'Savings' },
+      Amount: 500,
+    };
+
     it('should update a transfer', async () => {
+      mockQuickBooksInstance.getTransfer.mockImplementation((_id: any, cb: any) => cb(null, currentTransfer));
       mockQuickBooksInstance.updateTransfer.mockImplementation((payload: any, cb: any) => cb(null, {}));
 
       const result = await updateQuickbooksTransfer({
@@ -385,6 +395,7 @@ describe('Deposit and Transfer Handlers', () => {
     });
 
     it('should update a transfer with account refs', async () => {
+      mockQuickBooksInstance.getTransfer.mockImplementation((_id: any, cb: any) => cb(null, currentTransfer));
       mockQuickBooksInstance.updateTransfer.mockImplementation((payload: any, cb: any) => cb(null, {}));
 
       const result = await updateQuickbooksTransfer({
@@ -397,6 +408,65 @@ describe('Deposit and Transfer Handlers', () => {
       expect(result.isError).toBe(false);
     });
 
+    // QBO rejects a Transfer update without FromAccountRef, ToAccountRef and Amount (error 2020),
+    // even with sparse: true, so a note-only change must carry the current values.
+    it('should fill FromAccountRef, ToAccountRef and Amount from the current transfer', async () => {
+      mockQuickBooksInstance.getTransfer.mockImplementation((_id: any, cb: any) => cb(null, currentTransfer));
+      mockQuickBooksInstance.updateTransfer.mockImplementation((payload: any, cb: any) => cb(null, payload));
+
+      const result = await updateQuickbooksTransfer({ id: '1', sync_token: '3', private_note: 'Note only' });
+
+      expect(result.isError).toBe(false);
+      expect(mockQuickBooksInstance.getTransfer).toHaveBeenCalledWith('1', expect.any(Function));
+      const payload = (mockQuickBooksInstance.updateTransfer as any).mock.calls[0][0];
+      expect(payload).toEqual({
+        Id: '1',
+        SyncToken: '3', // the caller's token, so a concurrent edit still fails with 5010
+        sparse: true,
+        FromAccountRef: { value: 'current-from' },
+        ToAccountRef: { value: 'current-to' },
+        Amount: 500,
+        PrivateNote: 'Note only',
+      });
+    });
+
+    it('should keep caller-supplied values over the current transfer', async () => {
+      mockQuickBooksInstance.getTransfer.mockImplementation((_id: any, cb: any) => cb(null, currentTransfer));
+      mockQuickBooksInstance.updateTransfer.mockImplementation((payload: any, cb: any) => cb(null, payload));
+
+      await updateQuickbooksTransfer({ id: '1', sync_token: '0', from_account_ref: 'new-from', amount: 0 });
+
+      const payload = (mockQuickBooksInstance.updateTransfer as any).mock.calls[0][0];
+      expect(payload.FromAccountRef).toEqual({ value: 'new-from' });
+      expect(payload.ToAccountRef).toEqual({ value: 'current-to' });
+      expect(payload.Amount).toBe(0);
+    });
+
+    it('should not read the transfer when all required fields are given', async () => {
+      mockQuickBooksInstance.updateTransfer.mockImplementation((payload: any, cb: any) => cb(null, {}));
+
+      const result = await updateQuickbooksTransfer({
+        id: '1',
+        sync_token: '0',
+        from_account_ref: 'a',
+        to_account_ref: 'b',
+        amount: 10,
+      });
+
+      expect(result.isError).toBe(false);
+      expect(mockQuickBooksInstance.getTransfer).not.toHaveBeenCalled();
+    });
+
+    it('should return an error when the current transfer cannot be read', async () => {
+      mockQuickBooksInstance.getTransfer.mockImplementation((_id: any, cb: any) => cb(new Error('Object Not Found'), null));
+
+      const result = await updateQuickbooksTransfer({ id: '999', sync_token: '0', private_note: 'x' });
+
+      expect(result.isError).toBe(true);
+      expect(result.error).toContain('Object Not Found');
+      expect(mockQuickBooksInstance.updateTransfer).not.toHaveBeenCalled();
+    });
+
     it('should update a transfer - authentication error', async () => {
       (mockQuickbooksClientClass.getInstance as any).mockRejectedValue(new Error('Auth failed'));
 
@@ -407,6 +477,7 @@ describe('Deposit and Transfer Handlers', () => {
     });
 
     it('should update a transfer - API error', async () => {
+      mockQuickBooksInstance.getTransfer.mockImplementation((_id: any, cb: any) => cb(null, currentTransfer));
       mockQuickBooksInstance.updateTransfer.mockImplementation((payload: any, cb: any) =>
         cb(new Error('Update failed'), null)
       );
