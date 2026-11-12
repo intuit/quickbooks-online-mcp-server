@@ -3,12 +3,13 @@ import { ToolDefinition } from "../types/tool-definition.js";
 import { z } from "zod";
 
 const toolName = "update-vendor";
-const toolDescription = "Update a vendor in QuickBooks Online.";
+const toolDescription = "Update a vendor in QuickBooks Online. Vendors cannot be deleted; set Active to false to make one inactive.";
 const toolSchema = z.object({
   vendor: z.object({
     Id: z.string(),
     SyncToken: z.string(),
     DisplayName: z.string(),
+    Active: z.boolean().optional(),
     GivenName: z.string().optional(),
     FamilyName: z.string().optional(),
     CompanyName: z.string().optional(),
