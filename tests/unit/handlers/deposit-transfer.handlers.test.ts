@@ -64,6 +64,22 @@ describe('Deposit and Transfer Handlers', () => {
       expect(result.result).toEqual(mockDeposit);
     });
 
+    it('should send currency, exchange rate and line tax code', async () => {
+      let sent: any;
+      mockQuickBooksInstance.createDeposit.mockImplementation((payload: any, cb: any) => { sent = payload; cb(null, { Id: '1' }); });
+
+      await createQuickbooksDeposit({
+        deposit_to_account_ref: 'account-1',
+        line_items: [{ amount: 8000, account_ref: 'liability-1', tax_code_ref: '5' }],
+        currency_ref: 'USD',
+        exchange_rate: 1.39
+      });
+
+      expect(sent.CurrencyRef).toEqual({ value: 'USD' });
+      expect(sent.ExchangeRate).toBe(1.39);
+      expect(sent.Line[0].DepositLineDetail.TaxCodeRef).toEqual({ value: '5' });
+    });
+
     it('should create a deposit - API error', async () => {
       mockQuickBooksInstance.createDeposit.mockImplementation((payload: any, cb: any) =>
         cb(new Error('Create failed'), null)

@@ -9,9 +9,12 @@ export interface CreateDepositInput {
     account_ref?: string;
     entity_ref?: { type: string; value: string };
     description?: string;
+    tax_code_ref?: string;
   }>;
   txn_date?: string;
   private_note?: string;
+  currency_ref?: string;
+  exchange_rate?: number;
 }
 
 export async function createQuickbooksDeposit(data: CreateDepositInput): Promise<ToolResponse<any>> {
@@ -28,12 +31,15 @@ export async function createQuickbooksDeposit(data: CreateDepositInput): Promise
         DepositLineDetail: {
           AccountRef: l.account_ref ? { value: l.account_ref } : undefined,
           Entity: l.entity_ref ? { Type: l.entity_ref.type, EntityRef: { value: l.entity_ref.value } } : undefined,
+          TaxCodeRef: l.tax_code_ref ? { value: l.tax_code_ref } : undefined,
         },
       })),
     };
 
     if (data.txn_date) payload.TxnDate = data.txn_date;
     if (data.private_note) payload.PrivateNote = data.private_note;
+    if (data.currency_ref) payload.CurrencyRef = { value: data.currency_ref };
+    if (data.exchange_rate) payload.ExchangeRate = data.exchange_rate;
 
     return new Promise((resolve) => {
       (quickbooks as any).createDeposit(payload, (err: any, created: any) => {
