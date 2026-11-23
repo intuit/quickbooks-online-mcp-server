@@ -9,6 +9,7 @@ const lineItemSchema = z.object({
   amount: z.number().positive(),
   account_ref: z.string().optional(),
   description: z.string().optional(),
+  tax_code_ref: z.string().optional().describe("Tax code ID for the line"),
 });
 
 const toolSchema = z.object({
@@ -16,6 +17,8 @@ const toolSchema = z.object({
   line_items: z.array(lineItemSchema).min(1).describe("Deposit line items"),
   txn_date: z.string().optional().describe("Transaction date (YYYY-MM-DD)"),
   private_note: z.string().optional().describe("Private note"),
+  currency_ref: z.string().optional().describe("Currency code (e.g. USD), required when the bank account is not in the home currency"),
+  exchange_rate: z.number().positive().optional().describe("Home-currency units per one unit of currency_ref"),
 });
 
 const toolHandler = async ({ params }: any) => {
